@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Itinerary Website</title>
+    <link rel="stylesheet" href="/static/style/jquery-ui.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="/static/scripts/jquery-ui.min.js"></script>
+    <script src="/static/scripts/script.js"></script>
+    {% csrf_token %}
+</head>
+
+<body>
+    {% if trip %}
+        <h2>{{ trip.trip_name }}</h2>
+        {% for day in days %}
+            <div id="day_{{day.id}}">
+                <h3>{{day.date}}</h3>
+                {% for item in day.items %}
+                    <h4>{{item.item_name}}</h4>
+                {% endfor %}
+                <div id="add_area_day_{{day.id}}">
+                    <input type="text" maxlength="100" id="new_item_day_{{day.id}}">
+                    <button onclick="addItem({{day.id}})">Add</button>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+    <p>That trip does not exist</p>
+    {% endif %}
+</body>
+</html>
