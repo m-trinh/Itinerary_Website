@@ -36,9 +36,9 @@ In original terminal
 ```
 Enter password
 ```
-postgres=# CREATE DATABASE itinerary_site
-postgres=# CREATE USER admin WITH PASSWORD 'admin'
-postgres=# GRANT ALL PRIVILEGES ON itinerary_site TO admin
+postgres=# CREATE DATABASE itinerary_db;
+postgres=# CREATE USER admin WITH PASSWORD 'admin';
+postgres=# GRANT ALL PRIVILEGES ON itinerary_db TO admin;
 ```
 Quit postgres with CTRL+C
 ```
