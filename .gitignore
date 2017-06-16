@@ -1,0 +1,4 @@
+*.pyc
+venv/
+itinerary/migrations/
+itinerary_site/settings.py

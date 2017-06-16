@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Itinerary Website</title>
+    {% load static %}
+    <link rel="stylesheet" href="/static/style/jquery-ui.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="/static/scripts/jquery-ui.min.js"></script>
+    <script src="/static/scripts/script.js"></script>
+</head>
+    {% if trips %}
+        {% for trip in trips %}
+            <p><a href='/trip/{{trip.id}}'>{{trip.trip_name}}</a></p>
+        {% endfor %}
+    {% else %}
+        <p>You haven't created any trips yet</p>
+    {% endif %}
+</body>
+</html>

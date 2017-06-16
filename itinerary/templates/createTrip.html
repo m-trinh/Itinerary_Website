@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Itinerary Website</title>
+    <link rel="stylesheet" href="/static/style/jquery-ui.min.css">
+    <link rel="stylesheet" href="/static/style/style.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="/static/scripts/jquery-ui.min.js"></script>
+    <script src="/static/scripts/script.js"></script>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+</head>
+
+<body>
+    <div id="map"></div>
+    <form action="/create/" method="POST">
+        {% csrf_token %}
+        <div>
+            {{ form.location.errors }}
+            <label for="{{ form.location.id_for_label }}">Location: </label>
+            {{ form.location }}
+        </div>
+        <div>
+            {{ form.trip_name.errors }}
+            <label for="{{ form.trip_name.id_for_label }}">Trip Name: </label>
+            {{ form.trip_name }}
+        </div>
+        <div>
+            {{ form.description.errors }}
+            <label for="{{ form.description.id_for_label }}">Description: </label>
+            {{ form.description }}
+        </div>
+        <div>
+            {{ form.start_date.errors }}
+            <label for="{{ form.start_date.id_for_label }}">Start Date: </label>
+            {{ form.start_date }}
+        </div>
+        <div>
+            {{ form.end_date.errors }}
+            <label for="{{ form.end_date.id_for_label }}">End Date: </label>
+            {{ form.end_date }}
+        </div>
+        <div>
+            {{ form.public.errors }}
+            <label for="{{ form.public.id_for_label }}">Who can see this trip: </label>
+            {{ form.public }}
+        </div>
+        <input type="submit" value="Create" />
+    </form>
+
+    <script>
+        //Add the JQuery calenders to the two input fields
+        $('#id_start_date').datepicker({dateFormat: "yy-mm-dd"});
+        $('#id_end_date').datepicker({dateFormat: "yy-mm-dd"});
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA9NhCgTVArXQQf_nv9hRELlI7yaBxVvlA&libraries=places&callback=initMap" async defer></script>
+</body>
+</html>
