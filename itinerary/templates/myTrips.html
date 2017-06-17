@@ -8,12 +8,27 @@
     <script src="/static/scripts/jquery-ui.min.js"></script>
     <script src="/static/scripts/script.js"></script>
 </head>
-    {% if trips %}
-        {% for trip in trips %}
+<body>
+    {% if current_trips %}
+    <h3>Current Trips</h3>
+    <div id="current_trips">
+        {% for trip in current_trips %}
+            <p><a href='/trip/{{trip.id}}'>{{trip.trip_name}}</a></p>
+        {% endfor %}
+    </div>
+    {% endif %}
+    <h3>Future Trips</h3>
+    <div id="future_trips">
+    {% if future_trips %}
+        {% for trip in future_trips %}
             <p><a href='/trip/{{trip.id}}'>{{trip.trip_name}}</a></p>
         {% endfor %}
     {% else %}
-        <p>You haven't created any trips yet</p>
+        <p>You dont have any future trips planned. <a href="/create">Make one here!</a></p>
     {% endif %}
+    </div>
+    <h3 onclick="loadPastTrips()">Past Trips</h3>
+    <div id="past_trips">
+    </div>
 </body>
 </html>

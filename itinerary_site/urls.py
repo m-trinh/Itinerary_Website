@@ -34,6 +34,7 @@ urlpatterns = [
 	url(r'^myTrips/', views.viewMyTrips, name='myTrips'),
 	url(r'^getFriends/', views.getFriends, name='getFriends'),
 	url(r'^shareWithFriends/', views.shareWithFriends, name='shareWithFriends'),
+	url(r'^pastTrips/', views.viewPastTrips, name='pastTrips'),
     url(r'^admin/', admin.site.urls),
 	url(r'^api/', include(router.urls)),
 ]

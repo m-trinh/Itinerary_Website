@@ -2,3 +2,4 @@
 venv/
 itinerary/migrations/
 itinerary_site/settings.py
+itinerary_site/wsgi.py

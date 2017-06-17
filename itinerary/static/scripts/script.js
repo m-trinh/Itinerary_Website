@@ -119,10 +119,36 @@ function shareWithFriends() {
     });
 }
 
+//Exit modal if user clicks outside the box
 window.onclick = function(event) {
     var modal = document.getElementById('modal');
     if (event.target == modal) {
         hideModal();
+    }
+}
+
+past_trips_loaded = false;
+function loadPastTrips() {
+    if (!past_trips_loaded) {
+        $.ajax({
+            type: 'POST',
+            url: 'http://' + server_host + ':' + server_port + '/pastTrips/',
+            beforeSend: function (request) {
+                request.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+            },
+            success: function(response) {
+                past_trips_loaded = true;
+                if (response['message']) {
+                    $('div#past_trips').append('<p>' + response['message'] + '</p>');
+                    return;
+                }
+                console.log(response);
+                data = response.trips.data;
+                for (var i = 0; i < data.length; i++) {
+                    $('div#past_trips').append('<p><a href="/trip/' + data[i].id + '">' + data[i].trip_name + '</a></p>');
+                }
+            },
+        });
     }
 }
 

@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
 from itinerary.models import Trip, Day, Item, User
 from itinerary.views.forms import CreateTripForm
-from datetime import timedelta
+from datetime import timedelta, date
 from rest_framework import viewsets
 from django.views.decorators.csrf import ensure_csrf_cookie
 from itinerary.views.serializers import TripSerializer, DaySerializer, ItemSerializer, UserSerializer
@@ -110,14 +110,35 @@ def canViewTrip(request, trip):
     return 'You do not have access to this trip'
 
 def viewMyTrips(request):
-    #TODO: Distinguish between past and future trips
     #Get user, then search for trips created by that user
     if 'fb_id' in request.session:
         fb_id = int(request.session['fb_id'])
         user = User.objects.get(fb_id=fb_id)
-        trips = Trip.objects.filter(creator=user);
-        return render(request, 'myTrips.html', {'trips': trips})
+        #Current trips are in progress, with a start date before today and end date after today
+        current_trips = Trip.objects.filter(creator=user).filter(start_date__lte=date.today()).filter(end_date__gte=date.today()).only('id', 'trip_name', 'start_date', 'end_date').order_by('start_date')
+        #Future trips have start date after today
+        future_trips = Trip.objects.filter(creator=user).filter(start_date__gte=date.today()).only('id', 'trip_name', 'start_date', 'end_date').order_by('start_date')
+        return render(request, 'myTrips.html', {'current_trips': current_trips, 'future_trips': future_trips})
     return render(request, 'error.html')
+
+def viewPastTrips(request):
+    #Only load in past trips upon request
+    if 'fb_id' in request.session:
+        fb_id = int(request.session['fb_id'])
+        user = User.objects.get(fb_id=fb_id)
+        #Get trips with an end date that is after today
+        trips = Trip.objects.filter(creator=user).filter(end_date__lt=date.today()).order_by('-end_date')
+        if trips.count() != 0:
+            #Convert queryset into a serializable object
+            response = {}
+            response['data'] = []
+            for trip in trips:
+                data = {'id': trip.id, 'trip_name': trip.trip_name, 'start_date': trip.start_date, 'end_date': trip.end_date}
+                response['data'].append(data)
+            return JsonResponse({'trips': response})
+        else:
+            #If there are no past trips, send response
+            return JsonResponse({'message': 'You do not have any past trips'})
 
 def getFriends(request):
     #Need access token to get friends - Make sure it isn't expired
