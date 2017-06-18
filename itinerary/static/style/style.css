@@ -16,6 +16,25 @@ body {
     width:300px;
 }
 
+#site_title {
+    height:110px;
+}
+
+#site_title h2 {
+    letter-spacing:4px;
+    display:inline-block;
+    margin-left:10px;
+}
+
+#topbar {
+    height:30px;
+}
+
+#user_info {
+    display:inline-block;
+    float:right;
+}
+
 #modal {
     display:none;
     position:fixed;

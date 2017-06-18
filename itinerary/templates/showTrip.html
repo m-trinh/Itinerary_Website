@@ -16,7 +16,6 @@
         <h4>{{ error }}</h4>
     {% endif %}
     {% if trip %}
-        <script>var trip_id = {{ trip.id }}</script>
         <h2>{{ trip.trip_name }}</h2>
         {% for day in days %}
             <div id="day_{{day.id}}">
@@ -24,12 +23,15 @@
                 {% for item in day.items %}
                     <h4>{{item.item_name}}</h4>
                 {% endfor %}
+                {% if permissions == "Can Edit" or permissions == "Creator" %}
                 <div id="add_area_day_{{day.id}}">
                     <input type="text" maxlength="100" id="new_item_day_{{day.id}}">
                     <button onclick="addItem({{day.id}})">Add</button>
                 </div>
+                {% endif %}
             </div>
         {% endfor %}
+        {% if permissions == "Creator" %}
         <button onclick="showShareModal()">Share With Friends</button>
         <div id="modal">
             <div id="share_modal">
@@ -44,7 +46,7 @@
                 </div>
             </div>
         </div>
-
+        {% endif %}
     {% endif %}
 </body>
 </html>

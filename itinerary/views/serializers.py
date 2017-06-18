@@ -18,20 +18,22 @@ class DaySerializer(serializers.HyperlinkedModelSerializer):
 
 class ItemSerializer(serializers.HyperlinkedModelSerializer):
     def create(self, validated_data):
-        day_id = validated_data['day'].id
-
-        #Find the highest item position in a day and put the new item above that
-        highest_position = Item.objects.filter(day_id=day_id).order_by('-item_position')[:1]
-        user_added = self.context.get('request').fb_id
-        #If the day is empty, new item is in position 1
-        next_position = 1
-        if highest_position:
-            next_position = highest_position[0].item_position + 1
-        validated_data['item_position'] = next_position
-        validated_data['user_added'] = user_added
-        #Once new item has a position, create the object in database
-        item = Item.objects.create(**validated_data)
-        return item
+        day = validated_data['day']
+        session = self.context.get('request').session
+        permissions = session['trip_permission']
+        if day.trip.id == int(session['current_trip']) and (permissions == "Creator" or permissions == "Can Edit"):
+            user_added = User.objects.get(fb_id=session['fb_id'])
+            #Find the highest item position in a day and put the new item above that
+            highest_position = Item.objects.filter(day_id=day.id).order_by('-item_position')[:1]
+            #If the day is empty, new item is in position 1
+            next_position = 1
+            if highest_position:
+                next_position = highest_position[0].item_position + 1
+            validated_data['item_position'] = next_position
+            validated_data['user_added'] = user_added
+            #Once new item has a position, create the object in database
+            item = Item.objects.create(**validated_data)
+            return item
 
     class Meta:
         model = Item

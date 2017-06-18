@@ -4,21 +4,30 @@
     <title>Itinerary Website</title>
     {% load static %}
     <link rel="stylesheet" href="/static/style/jquery-ui.min.css">
+    <link rel="stylesheet" href="/static/style/style.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <script src="/static/scripts/jquery-ui.min.js"></script>
     <script src="/static/scripts/script.js"></script>
 </head>
 
 <body>
-    <div id="fb-root"></div>
-    <script src="/static/scripts/fb_login.js"></script>
-    <span id="full_name"></span>
-    <span id="fb_picture"></span>
-    <fb:login-button
-        id="fb_login_button"
-        scope="public_profile,email,user_friends"
-        onlogin="checkLoginState();">
-    </fb:login-button>
+    <div id="site_title">
+        <img src="/static/images/globe.gif" height="100" width="100">
+        <h2>PlanIt</h2>
+    </div>
+    <div id="topbar">
+        <div id="fb-root"></div>
+        <script src="/static/scripts/fb_login.js"></script>
+        <span id="user_info">
+            <a href='/myTrips'><span id="full_name"></span>
+            <span id="fb_picture"></span></a>
+            <fb:login-button
+                id="fb_login_button"
+                scope="public_profile,email,user_friends"
+                onlogin="checkLoginState();">
+            </fb:login-button>
+        </span>
+    </div>
     <p><a href='/allTrips'>View All Trips</a></p>
     <p><a href='/myTrips'>View My Trips</a></p>
     <p><a href='/create'>Create a Trip</a></p>

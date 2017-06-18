@@ -65,16 +65,18 @@ def showTrip(request, tripID):
         trip = Trip.objects.get(id=tripID)
         #Check to see if user can access trip
         response = canViewTrip(request, trip)
-        if response == 'Can View' or response == 'Can Edit':
+        if response:
+            request.session['current_trip'] = tripID
+            request.session['trip_permission'] = response
             #Fetch day and item information for the trip
             days = Day.objects.filter(trip_id=tripID).order_by('date')
             for day in days:
                 items = Item.objects.filter(day_id=day.id)
                 day.items = items
-            return render(request, 'showTrip.html', {'trip': trip, 'days': days})
+            return render(request, 'showTrip.html', {'trip': trip, 'days': days, 'permissions': response})
         else:
             #If user can't access trip
-            return render(request, 'showTrip.html', {'error': response})
+            return render(request, 'showTrip.html', {'error': 'You do not have access to this trip'})
     except Trip.DoesNotExist:
         #If trip does not exist
         error = 'This trip does not exist'
@@ -86,7 +88,7 @@ def canViewTrip(request, trip):
         fb_id = int(request.session['fb_id'])
         #User is the creator
         if fb_id == trip.creator.fb_id:
-            return 'Can Edit'
+            return 'Creator'
 
         #Trip has been shared with the User
         shared = trip.shared_users.only('fb_id')
@@ -107,7 +109,7 @@ def canViewTrip(request, trip):
         return 'Can View'
 
     #User does not have access to the trip
-    return 'You do not have access to this trip'
+    return False
 
 def viewMyTrips(request):
     #Get user, then search for trips created by that user
@@ -144,7 +146,7 @@ def getFriends(request):
     #Need access token to get friends - Make sure it isn't expired
     if 'fb_id' in request.session and 'access_token' in request.session:
         fb_id = int(request.session['fb_id'])
-        trip = Trip.objects.get(id=request.POST.get('trip_id', '0'))
+        trip = Trip.objects.get(id=request.session['current_trip'])
         #Check again to make sure user is creator
         if fb_id == trip.creator.fb_id:
             graph = facebook.GraphAPI(access_token=request.session['access_token'], version='2.7')
@@ -187,15 +189,14 @@ def shareWithFriends(request):
 def addItem(request):
     day_id = request.POST.get('day_id')
     day = Day.objects.get(id=day_id)
+    permissions = request.session['trip_permission']
+    if day.trip.id == request.session['current_trip'] and (permissions == "Creator" or permissions == "Can Edit"):
+        highest_position = Item.objects.filter(day_id=day_id).order_by('-item_position')[:1]
+        next_position = 1
+        if highest_position:
+            next_position = highest_position[0].item_position + 1
 
-    highest_position = Item.objects.filter(day_id=day_id).order_by('-item_position')[:1]
-    next_position = 1
-    if highest_position:
-        next_position = highest_position[0].item_position + 1
-
-    item = Item.objects.create(item_name=request.POST.get('item_name'), item_position=next_position, day=day)
-    #item.save()
-    print(item)
+        item = Item.objects.create(item_name=request.POST.get('item_name'), item_position=next_position, day=day)
 
     return JsonResponse(dict(item))
 

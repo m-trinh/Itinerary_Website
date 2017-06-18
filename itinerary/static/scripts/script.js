@@ -38,7 +38,6 @@ function addItem(day_id) {
         success: function(item) {
             //Update page
             var item_insert = '<h4>' + item.item_name + '</h4>';
-            $('div#day_' + day_id).append(item_insert);
             $(item_insert).insertBefore('div#add_area_day_' + day_id)
             $('input#new_item_day_' + day_id).val('');
         },
@@ -56,7 +55,6 @@ function showShareModal() {
             beforeSend: function (request) {
                 request.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
             },
-            data: {'trip_id': trip_id},
             success: function(friends) {
                 console.log(friends);
                 already_found = true;
