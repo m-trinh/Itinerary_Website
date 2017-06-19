@@ -4,14 +4,15 @@
     <title>Itinerary Website</title>
     <link rel="stylesheet" href="/static/style/jquery-ui.min.css">
     <link rel="stylesheet" href="/static/style/style.css">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <script src="/static/scripts/jquery-ui.min.js"></script>
     <script src="/static/scripts/script.js"></script>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v0.38.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v0.38.0/mapbox-gl.css' rel='stylesheet' />
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
 </head>
 
 <body>
-    <div id="map"></div>
+    <div id="map" style='width: 400px; height: 300px;'></div>
     <form action="/create/" method="POST">
         {% csrf_token %}
         <div>
@@ -52,6 +53,15 @@
         $('#id_start_date').datepicker({dateFormat: "yy-mm-dd"});
         $('#id_end_date').datepicker({dateFormat: "yy-mm-dd"});
     </script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA9NhCgTVArXQQf_nv9hRELlI7yaBxVvlA&libraries=places&callback=initMap" async defer></script>
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoiaGVpcG8iLCJhIjoiY2o0NGt5ZjUwMDBucjJxbXFkY3NocDB6NiJ9.hpEpBTqgwgHHW-gSA6ZNzg';
+        var map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/streets-v10',
+            center: [42.3601, 71.059], // starting position
+            zoom: 8
+        });
+        map.addControl(new mapboxgl.NavigationControl());
+    </script>
 </body>
 </html>

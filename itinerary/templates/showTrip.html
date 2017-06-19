@@ -20,14 +20,18 @@
         {% for day in days %}
             <div id="day_{{day.id}}">
                 <h3>{{day.date}}</h3>
-                {% for item in day.items %}
-                    <h4>{{item.item_name}}</h4>
-                {% endfor %}
                 {% if permissions == "Can Edit" or permissions == "Creator" %}
+                {% for item in day.items %}
+                    <h4 class="movable item" onmousedown="pickUp(this)" onmouseup="drop(this)">{{item.item_name}}</h4>
+                {% endfor %}
                 <div id="add_area_day_{{day.id}}">
                     <input type="text" maxlength="100" id="new_item_day_{{day.id}}">
                     <button onclick="addItem({{day.id}})">Add</button>
                 </div>
+                {% else %}
+                {% for item in day.items %}
+                    <h4 class="item">{{item.item_name}}</h4>
+                {% endfor %}
                 {% endif %}
             </div>
         {% endfor %}
@@ -47,6 +51,7 @@
             </div>
         </div>
         {% endif %}
+        <div id="empty_space"></div>
     {% endif %}
 </body>
 </html>
