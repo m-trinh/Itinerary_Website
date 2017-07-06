@@ -4,6 +4,8 @@
     <title>Itinerary Website</title>
     <link rel="stylesheet" href="/static/style/jquery-ui.min.css">
     <link rel="stylesheet" href="/static/style/style.css">
+    <link rel='stylesheet' href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v2.1.0/mapbox-gl-geocoder.css' type='text/css' />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <script src="/static/scripts/jquery-ui.min.js"></script>
     <script src="/static/scripts/script.js"></script>
     <script src='https://api.mapbox.com/mapbox-gl-js/v0.38.0/mapbox-gl.js'></script>
@@ -12,14 +14,36 @@
 </head>
 
 <body>
-    <div id="map" style='width: 400px; height: 300px;'></div>
-    <form action="/create/" method="POST">
+
+    <div id="map" style='width: 1200px; height: 900px;'> </div>
+    
+    <nav id='listing-group' class='listing-group'>
+        <input type='checkbox' id='scrollZoom' checked='checked'>
+        <label for='scrollZoom'>Scroll zoom</label> 
+        <input type='checkbox' id='boxZoom' checked='checked'>
+        <label for='boxZoom'>Box zoom</label>
+        <input type='checkbox' id='dragRotate' checked='checked'>
+        <label for='dragRotate'>Drag rotate</label>
+        <input type='checkbox' id='dragPan' checked='checked'>
+        <label for='dragPan'>Drag pan</label>
+        <input type='checkbox' id='keyboard' checked='checked'>
+        <label for='keyboard'>Keyboard</label>
+        <input type='checkbox' id='doubleClickZoom' checked='checked'>
+        <label for='doubleClickZoom'>Double click zoom</label>
+        <input type='checkbox' id='touchZoomRotate' checked='checked'>
+        <label for='touchZoomRotate'>Touch zoom rotate</label>
+    </nav>
+
+    <form action="/create/" method="POST" autocomplete="off">
         {% csrf_token %}
         <div>
             {{ form.location.errors }}
             <label for="{{ form.location.id_for_label }}">Location: </label>
             {{ form.location }}
+            <div id="autocomplete_area"></div>
         </div>
+        {{ form.longitude }}
+        {{ form.latitude }}
         <div>
             {{ form.trip_name.errors }}
             <label for="{{ form.trip_name.id_for_label }}">Trip Name: </label>
@@ -45,7 +69,7 @@
             <label for="{{ form.public.id_for_label }}">Who can see this trip: </label>
             {{ form.public }}
         </div>
-        <input type="submit" value="Create" />
+        <input type="submit" value="Create" id="create_submit"/>
     </form>
 
     <script>
@@ -53,15 +77,127 @@
         $('#id_start_date').datepicker({dateFormat: "yy-mm-dd"});
         $('#id_end_date').datepicker({dateFormat: "yy-mm-dd"});
     </script>
+
     <script>
         mapboxgl.accessToken = 'pk.eyJ1IjoiaGVpcG8iLCJhIjoiY2o0NGt5ZjUwMDBucjJxbXFkY3NocDB6NiJ9.hpEpBTqgwgHHW-gSA6ZNzg';
         var map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/streets-v10',
-            center: [42.3601, 71.059], // starting position
-            zoom: 8
+            center: [-71.0571, 42.3601], // starting position
+            zoom: 9
         });
+
         map.addControl(new mapboxgl.NavigationControl());
+        map.addControl(new mapboxgl.GeolocateControl());
+
+        var layers = document.getElementById('listing-group');
+
+        $("#create_submit").prop('disabled', true);
+
+        var autocomplete_options = null;
+        var current_option = null;
+        var old_query = '';
+        var marker_image = document.createElement('img');
+        marker_image.src = '/static/images/map_marker.png';
+        var marker = new mapboxgl.Marker(marker_image, {offset: [-9, -32]}).setLngLat([-71.0571, 42.3601]).addTo(map);
+        $("#id_location").keyup(function(event) {
+            var query = $("#id_location").val();
+            if (query != old_query) {
+                $("#id_longitude").val("");
+                $("#id_latitude").val("");
+                $("#create_submit").prop('disabled', true);
+                old_query = query;
+
+                if (query) {
+                    $.get('https://api.mapbox.com/geocoding/v5/mapbox.places/'+ query + '.json?types=place,address&language=en&access_token=' + mapboxgl.accessToken, function(data, status){
+                        if (data) {
+                            if (data.features[0].bbox) {
+                                map.fitBounds(data.features[0].bbox);
+                            } else {
+                                map.flyTo({center: data.features[0].center, zoom: 17});
+                            }
+                            marker.setLngLat(data.features[0].center);
+                            $("#autocomplete_area").show();
+                            $("#autocomplete_area").empty();
+                            for (var i = 0; i < data.features.length; i++) {
+                                var name = data.features[i].place_name;
+                                if (data.features[i].matching_place_name) {
+                                    name = name + ", " + data.features[i].matching_place_name;
+                                }
+                                $("#autocomplete_area").append('<p class="autocomplete_options" onclick="goToLocation(' + i + ')">' + name + '</p>');
+                            }
+                            autocomplete_options = data.features;
+                            current_option = null;
+                        } else {
+                            $("#autocomplete_area").hide();
+                        }
+                    });
+                }
+            }
+        }).keydown(function(event) {
+            if ($("#autocomplete_area").is(":visible")) {
+                if (event.keyCode == 40) {
+                    event.preventDefault();
+                    if (current_option == null) {
+                        current_option = -1;
+                    }
+                    current_option = (current_option + 1) % autocomplete_options.length;
+                } else if (event.keyCode == 38) {
+                    event.preventDefault();
+                    if (current_option == null) {
+                        current_option = 0;
+                    }
+                    current_option = (current_option - 1) % autocomplete_options.length;
+                }
+                $(".autocomplete_options").eq(current_option).addClass("autocomplete_focus").siblings().removeClass("autocomplete_focus");
+                if (event.keyCode == 13) {
+                    event.preventDefault();
+                    $(".autocomplete_options").eq(current_option).click();
+                }
+            }
+        }).focus(function() {
+            if ($("#autocomplete_area").children().length > 0) {
+                $("#autocomplete_area").show();
+            }
+        });
+
+        $("#autocomplete_area").hover(function() {
+            $(".autocomplete_options").removeClass("autocomplete_focus");
+            current_option = null;
+        });
+
+        window.onclick = function(event) {
+            if (event.target != document.getElementById("id_location") && event.target != document.getElementById("autocomplete_area")) {
+                $("#autocomplete_area").hide();
+            }
+        }
+
+        function goToLocation(index) {
+            if (autocomplete_options[index].bbox) {
+                map.fitBounds(autocomplete_options[index].bbox);
+            } else {
+                map.flyTo({center: autocomplete_options[index].center, zoom: 17});
+            }
+            marker.setLngLat(autocomplete_options[index].center);
+            var name = autocomplete_options[index].place_name;
+            if (autocomplete_options[index].matching_place_name) {
+                name = name + ", " + autocomplete_options[index].matching_place_name;
+            }
+            $("#id_location").val(name);
+            old_query = name;
+            $("#id_longitude").val(autocomplete_options[index].center[0]);
+            $("#id_latitude").val(autocomplete_options[index].center[1]);
+            $("#create_submit").prop('disabled', false);
+        }
+
+        document.getElementById('listing-group').addEventListener('change', function(e) {
+            var handler = e.target.id;
+                if (e.target.checked) {
+                        map[handler].enable();
+                } else {
+                        map[handler].disable();
+                }
+        });
     </script>
 </body>
 </html>

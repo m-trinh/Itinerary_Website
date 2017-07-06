@@ -35,6 +35,9 @@ urlpatterns = [
 	url(r'^getFriends/', views.getFriends, name='getFriends'),
 	url(r'^shareWithFriends/', views.shareWithFriends, name='shareWithFriends'),
 	url(r'^pastTrips/', views.viewPastTrips, name='pastTrips'),
-    url(r'^admin/', admin.site.urls),
+	url(r'^updateItemPositions', views.updateItemPositions, name='updateItemPositions'),
+	url(r'^yelpTest/', views.yelpTest, name='yelpTest'),
+	url(r'^getFoursquareResults?', views.getFoursquareResults, name='getFoursquareResults'),
+        url(r'^admin/', admin.site.urls),
 	url(r'^api/', include(router.urls)),
 ]

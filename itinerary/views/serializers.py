@@ -37,4 +37,4 @@ class ItemSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Item
-        fields = ('item_name', 'item_description', 'start_time', 'end_time', 'item_longitude', 'item_latitude', 'day')
+        fields = ('id', 'item_name', 'item_description', 'start_time', 'end_time', 'item_longitude', 'item_latitude', 'day')

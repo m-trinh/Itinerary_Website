@@ -1,12 +1,16 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
+from django.core.cache import cache
 from itinerary.models import Trip, Day, Item, User
 from itinerary.views.forms import CreateTripForm
+from itinerary.views.api_ids import Ids
 from datetime import timedelta, date
 from rest_framework import viewsets
 from django.views.decorators.csrf import ensure_csrf_cookie
 from itinerary.views.serializers import TripSerializer, DaySerializer, ItemSerializer, UserSerializer
+import requests
 import facebook
+import json
 
 def index(request):
     return render(request, 'home.html')
@@ -18,6 +22,8 @@ def createTrip(request):
         if form.is_valid():
             creator = User.objects.get(fb_id=request.session['fb_id'])
             location = form.cleaned_data['location']
+            longitude = form.cleaned_data['longitude']
+            latitude = form.cleaned_data['latitude']
             trip_name = form.cleaned_data['trip_name']
             description = form.cleaned_data['description']
             start_date = form.cleaned_data['start_date']
@@ -29,7 +35,7 @@ def createTrip(request):
                 trip_name = location
 
             #Create the trip
-            trip = Trip(creator=creator, location=location, trip_name=trip_name, description=description, start_date=start_date, end_date=end_date, public_level=public_level)
+            trip = Trip(creator=creator, location=location, longitude=longitude, latitude=latitude, trip_name=trip_name, description=description, start_date=start_date, end_date=end_date, public_level=public_level)
             trip.save()
 
             #For each day of the trip, create a day object
@@ -71,7 +77,7 @@ def showTrip(request, tripID):
             #Fetch day and item information for the trip
             days = Day.objects.filter(trip_id=tripID).order_by('date')
             for day in days:
-                items = Item.objects.filter(day_id=day.id)
+                items = Item.objects.filter(day_id=day.id).order_by('item_position')
                 day.items = items
             return render(request, 'showTrip.html', {'trip': trip, 'days': days, 'permissions': response})
         else:
@@ -83,7 +89,6 @@ def showTrip(request, tripID):
         return render(request, 'showTrip.html', {'error': error})
 
 def canViewTrip(request, trip):
-    fb_id = None
     if 'fb_id' in request.session:
         fb_id = int(request.session['fb_id'])
         #User is the creator
@@ -173,7 +178,7 @@ def getFriends(request):
 def shareWithFriends(request):
     if 'fb_id' in request.session:
         fb_id = int(request.session['fb_id'])
-        trip = Trip.objects.get(id=request.POST.get('trip_id', '0'))
+        trip = Trip.objects.get(id=request.session['current_trip'])
         #Check again to make sure user is creator
         if fb_id == trip.creator.fb_id:
             id_list = request.POST.getlist('id_list[]', '0')
@@ -185,6 +190,88 @@ def shareWithFriends(request):
                     user = User.objects.get(fb_id=int(id))
                     trip.shared_users.add(user)
             return HttpResponse("Friends added to trip")
+
+def updateItemPositions(request):
+    items = request.POST.getlist('items[]', '0')
+    for index in range(len(items)):
+        items[index] = json.loads(items[index])
+    print(items)
+    if validateItems(request, items):
+        for item in items:
+            item_object = Item.objects.get(id=item['item_id'])
+            item_object.day = Day.objects.get(id=item['day_id'])
+            item_object.item_position = item['position']
+            item_object.save()
+        return HttpResponse("Items updated")
+    else:
+        return HttpResponse("Something went wrong")
+
+def validateItems(request, items):
+    current_trip = Trip.objects.get(id=request.session['current_trip'])
+    for item in items:
+        if Item.objects.get(id=item['item_id']).day.trip != current_trip:
+            return False
+    return True
+
+def getYelpToken():
+    yelp_token = cache.get('yelp_token')
+    if not yelp_token:
+        response = requests.post('https://api.yelp.com/oauth2/token?grant_type=client_credentials&client_secret=' + Ids.yelp_secret).json()
+        yelp_token = response['access_token']
+        timeout = 60*60*24*180
+        cache.set('yelp_token', yelp_token, timeout)
+    return yelp_token
+
+def yelpTest(request):
+    return render(request, 'yelpTest.html')
+
+def getYelpResults(request):
+    if request.method == 'GET':
+        term = request.GET.get('term')
+        latitude = request.GET.get('latitude')
+        longitude = request.GET.get('longitude')
+        radius = request.GET.get('radius')
+        yelp_token = getYelpToken()
+
+        url = 'https://api.yelp.com/v3/businesses/search?term='+ term + '&latitude=' + latitude + '&longitude=' + longitude +'&radius=' + radius
+        headers = {'Authorization': 'Bearer ' + yelp_token}
+        response = requests.get(url, headers=headers)
+        print(response.text)
+        return response
+
+def getFoursquareResults(request):
+    if request.method == 'GET':
+        query = request.GET.get('query')
+        # sw = request.GET.get('sw')
+        # ne = request.GET.get('ne')
+        # category = request.GET.get('category')
+        ll = request.GET.get('ll')
+        radius = request.GET.get('radius')
+        page = request.GET.get('page')
+        offset = (int(page) - 1) * 10
+
+        url = 'https://api.foursquare.com/v2/venues/explore?client_id=' + Ids.foursquare_id + '&client_secret=' + Ids.foursquare_secret + '&v=20170702&m=foursquare&limit=10&offset=' + str(offset) + '&query=' + query + '&ll=' + ll + '&radius=' + radius + '&sortByDistance=0&time=any&day=any&venuePhotos=1'
+
+        response = requests.get(url).json()
+        print(response)
+        complete_response = {}
+        complete_response['venues'] = []
+        for group in response['response']['groups']:
+            for item in group['items']:
+                complete_venue = requests.get('https://api.foursquare.com/v2/venues/' + item['venue']['id'] + '?client_id=' + Ids.foursquare_id + '&client_secret=' + Ids.foursquare_secret + '&v=20170702&m=foursquare').json()['response']['venue']
+                #print(photo_response)
+                complete_response['venues'].append(complete_venue)
+
+        return JsonResponse(complete_response)
+
+# This takes in a list of foursquare venue_id
+def getFourSquareEvents(venueIdList):
+    complete_response = {}
+    complete_response['events'] = []
+    for vid in venueIdList:
+        complete_event = requests.get('https://api.foursquare.com/v2/venues/' + vid + '/events' + '?client_id=' + Ids.foursquare_id + '&client_secret=' + Ids.foursquare_secret)
+        complete_response['events'].append(complete_event)
+    return JsonResponse(complete_response)
 
 def addItem(request):
     day_id = request.POST.get('day_id')
