@@ -38,6 +38,7 @@ urlpatterns = [
 	url(r'^updateItemPositions', views.updateItemPositions, name='updateItemPositions'),
 	url(r'^yelpTest/', views.yelpTest, name='yelpTest'),
 	url(r'^getFoursquareResults?', views.getFoursquareResults, name='getFoursquareResults'),
-        url(r'^admin/', admin.site.urls),
+	url(r'^getFoursquareVenue', views.getFoursquareVenue, name='getFoursquareVenue'),
+    url(r'^admin/', admin.site.urls),
 	url(r'^api/', include(router.urls)),
 ]

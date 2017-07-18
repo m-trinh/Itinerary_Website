@@ -19,31 +19,31 @@ function getCookie(name) {
 }
 
 //Adds an item to a trip day
-function addItem(day_id) {
-    //Take item name from input create JSON object
-    var new_item_name = $('input#new_item_day_' + day_id).val();
-    var new_item = {
-        'item_name': new_item_name,
-        'day': 'http://' + server_host + ':' + server_port + '/api/days/' + day_id + '/'
-    };
+// function addItem(day_id) {
+//     //Take item name from input create JSON object
+//     var new_item_name = $('input#new_item_day_' + day_id).val();
+//     var new_item = {
+//         'item_name': new_item_name,
+//         'day': 'http://' + server_host + ':' + server_port + '/api/days/' + day_id + '/'
+//     };
 
-    //Use API to update database, update the template if successful
-    $.ajax({
-        type: 'POST',
-        url: 'http://' + server_host + ':' + server_port + '/api/items/',
-        beforeSend: function (request) {
-            request.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-        },
-        data: new_item,
-        success: function(item) {
-            //Update page
-            console.log(item);
-            var item_insert = '<h4 id="item_' + item.id + '" class="movable item" onmousedown="pickUp(this)" onmouseup="drop(this)">' + item.item_name + '</h4>';
-            $(item_insert).insertBefore('div#add_area_day_' + day_id)
-            $('input#new_item_day_' + day_id).val('');
-        },
-    });
-}
+//     //Use API to update database, update the template if successful
+//     $.ajax({
+//         type: 'POST',
+//         url: 'http://' + server_host + ':' + server_port + '/api/items/',
+//         beforeSend: function (request) {
+//             request.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+//         },
+//         data: new_item,
+//         success: function(item) {
+//             //Update page
+//             console.log(item);
+//             var item_insert = '<h4 id="item_' + item.id + '" class="movable item" onmousedown="pickUp(this)" onmouseup="drop(this)">' + item.item_name + '</h4>';
+//             $(item_insert).insertBefore('div#add_area_day_' + day_id)
+//             $('input#new_item_day_' + day_id).val('');
+//         },
+//     });
+// }
 
 var friends_list = [];
 var already_found = false;

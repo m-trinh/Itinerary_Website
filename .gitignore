@@ -4,3 +4,4 @@ itinerary/migrations/
 itinerary_site/settings.py
 itinerary_site/wsgi.py
 itinerary/views/api_ids.py
+itinerary/templates/yelpTest.html

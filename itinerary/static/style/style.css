@@ -53,7 +53,7 @@ body {
 #modal {
     display:none;
     position:fixed;
-    z-index:1;
+    z-index:3;
     left: 0;
     top: 0;
     width: 100%;
@@ -131,9 +131,50 @@ body {
     margin:3px 0;
 }
 
-#search_area {
+#search_places,
+#trip_page {
+    min-width:1280px;
+    margin:0;
+    font-size:0;
+}
+
+#search_places p,
+#search_places span,
+#trip_page p,
+#trip_page span {
+    font-size:16px;
+}
+
+#trip_page h2 {
+    font-size:24px;
+}
+
+#trip_page h3 {
+    font-size:20px;
+}
+
+#trip_page h4 {
+    font-size:16px;
+}
+
+#search_places input[type="text"],
+#trip_functions input[type="text"],
+#search_results select,
+#search_results option {
+    font-size:14px;
+}
+
+#search_area,
+#venue_page,
+#trip_itinerary,
+#trip_functions {
     width:50%;
-    border-collapse:true;
+    display:inline-block;
+    vertical-align:top;
+}
+
+#trip_itinerary .inner {
+    padding:15px;
 }
 
 #search_results {
@@ -152,25 +193,45 @@ body {
 .result img {
     width:100px;
     display:inline-block;
+    cursor:pointer;
 }
 
 .result h4 {
     font-size:24px;
     font-weight:normal;
     margin-bottom:5px;
+    cursor:pointer;
+}
+
+.result h4:hover {
+    color:#33bbff;
 }
 
 .result span {
-    display:block;
+    display:inline-block;
+}
+
+.venue_rating {
     height:25px;
     line-height:25px;
-    vertical-align:middle;
-    width:50px;
-    background-color:#33cc33;
     border-radius:3px;
     color:white;
     font-weight:bold;
+    width:50px;
+    margin-right:5px;
     text-align:center;
+}
+
+.venue_price {
+    margin-right:5px;
+}
+
+.venue_price span {
+
+}
+
+.light_price {
+    color:#cccccc;
 }
 
 .result p {
@@ -187,6 +248,21 @@ body {
     display:inline-block;
     margin-left:15px;
     vertical-align:top;
+}
+
+#venue_photos {
+    width:100%;
+}
+
+#venue_photos img {
+    display:inline-block;
+    width:33.33%;
+    height:33.33%;
+}
+
+#venue_page h3 {
+    font-weight:normal;
+    font-size:32px;
 }
 
 .listing-group {

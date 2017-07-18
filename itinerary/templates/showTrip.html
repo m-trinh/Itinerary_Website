@@ -4,52 +4,227 @@
     <title>Itinerary Website</title>
     <link rel="stylesheet" href="/static/style/jquery-ui.min.css">
     <link rel="stylesheet" href="/static/style/style.css">
+    <link rel='stylesheet' href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v2.1.0/mapbox-gl-geocoder.css' type='text/css' />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <script src="/static/scripts/jquery-ui.min.js"></script>
     <script src="/static/scripts/script.js"></script>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v0.38.0/mapbox-gl.js'></script>
+    <script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v2.1.0/mapbox-gl-geocoder.min.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v0.38.0/mapbox-gl.css' rel='stylesheet' />
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
     {% csrf_token %}
 </head>
 
-<body>
+<body id="trip_page">
     <script src="/static/scripts/fb_login.js"></script>
     {% if error %}
         <h4>{{ error }}</h4>
     {% endif %}
     {% if trip %}
-        <h2>{{ trip.trip_name }}</h2>
-        {% for day in days %}
-            <div id="day_{{day.id}}">
-                <h3>{{day.date}}</h3>
-                {% if permissions == "Can Edit" or permissions == "Creator" %}
-                {% for item in day.items %}
-                    <h4 id="item_{{item.id}}" class="movable item" onmousedown="pickUp(this)" onmouseup="drop(this)">{{item.item_name}}</h4>
+        <div id="trip_itinerary">
+            <div class="inner">
+                <h2>{{ trip.trip_name }}</h2>
+                {% for day in days %}
+                    <div class="day_area" id="day_{{day.id}}">
+                        <h3>{{day.date}}</h3>
+                        {% if permissions == "Can Edit" or permissions == "Creator" %}
+                        {% for item in day.items %}
+                            <h4 id="item_{{item.id}}" class="movable item" onmousedown="pickUp(this)" onmouseup="drop(this)">{{item.item_name}}</h4>
+                        {% endfor %}
+                        <h4 class="movable" height="0"></h4>
+                        <div id="add_area_day_{{day.id}}">
+                            <input type="text" maxlength="100" id="new_item_day_{{day.id}}">
+                            <button onclick="addItem({{day.id}})">Add</button>
+                        </div>
+                        {% else %}
+                        {% for item in day.items %}
+                            <h4 class="item">{{item.item_name}}</h4>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
                 {% endfor %}
-                <h4 class="movable" height="0"></h4>
-                <div id="add_area_day_{{day.id}}">
-                    <input type="text" maxlength="100" id="new_item_day_{{day.id}}">
-                    <button onclick="addItem({{day.id}})">Add</button>
-                </div>
-                {% else %}
-                {% for item in day.items %}
-                    <h4 class="item">{{item.item_name}}</h4>
-                {% endfor %}
-                {% endif %}
-            </div>
-        {% endfor %}
-        {% if permissions == "Creator" %}
-        <button onclick="showShareModal()">Share With Friends</button>
-        <div id="modal">
-            <div id="share_modal">
-                <div id="share_modal_header">
-                    <span id="close_button" onclick="hideModal()">Close</span>
-                    <h3>Choose Friends Who Can View And Add To Your Plans</h3>
-                </div>
-                <div id="friends_box"></div>
-                <div id="shared_box"></div>
-                <div id="share_modal_header">
-                    <button onclick="shareWithFriends()">Share</button>
+                {% if permissions == "Creator" %}
+                <button onclick="showShareModal()">Share With Friends</button>
+                <div id="modal">
+                    <div id="share_modal">
+                        <div id="share_modal_header">
+                            <span id="close_button" onclick="hideModal()">Close</span>
+                            <h3>Choose Friends Who Can View And Add To Your Plans</h3>
+                        </div>
+                        <div id="friends_box"></div>
+                        <div id="shared_box"></div>
+                        <div id="share_modal_header">
+                            <button onclick="shareWithFriends()">Share</button>
+                        </div>
+                    </div>
                 </div>
             </div>
+        </div>
+        <div id="trip_functions">
+            <div id="map" style='width: 100%; height: 400px;'></div>
+            <script>
+                var trip_lat = {{ trip.latitude }};
+                var trip_lng = {{ trip.longitude }};
+                console.log(trip_lat + ' ' + trip_lng);
+                console.log("{{trip}}");
+                mapboxgl.accessToken = 'pk.eyJ1IjoiaGVpcG8iLCJhIjoiY2o0NGt5ZjUwMDBucjJxbXFkY3NocDB6NiJ9.hpEpBTqgwgHHW-gSA6ZNzg';
+                var map = new mapboxgl.Map({
+                    container: 'map',
+                    style: 'mapbox://styles/mapbox/streets-v10',
+                    center: [trip_lng, trip_lat], // starting position
+                    zoom: 13
+                });
+                map.addControl(new mapboxgl.NavigationControl());
+            </script>
+
+            {% if permissions == "Can Edit" or permissions == "Creator" %}
+            <div id="find_item">
+                <input type="text" id="search_item">
+                <button onclick="findThingsToDo()">Search</button>
+                <div id="search_results"></div>
+            </div>
+            <script>
+                current_query = null;
+                current_center = null;
+                current_radius = null;
+                function findThingsToDo() {
+                    var bounds = map.getBounds();
+                    // var sw = convertLatLngToString(bounds.getSouthWest());
+                    // var ne = convertLatLngToString(bounds.getNorthEast());
+
+                    current_query = $('#search_item').val();
+                    current_center = map.getCenter();
+                    current_radius = parseInt((Math.abs(bounds.getNorth() - current_center.lat)) * (Math.PI/180) * 6371000);
+                    if (current_radius > 40000) {
+                        current_radius = 40000;
+                    }
+                    getResults(1);
+                }
+
+                var current_venues = null;
+                function getResults(page) {
+                    var url = '/getFoursquareResults?query='+ current_query + '&ll=' + convertLatLngToString(current_center) + '&radius=' + current_radius + '&page=' + page;
+
+                    $.ajax({
+                        type: 'GET',
+                        url: url,
+                        beforeSend: function (request) {
+                            request.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+                        },
+                        success: function(response) {
+                            console.log(response);
+                            current_venues = response['venues'];
+                            showResults(current_venues);
+                        },
+                    });
+                }
+
+                var markers = [];
+                function showResults(venues) {
+                    $('#search_results').empty();
+                    removeMarkers();
+
+                    var add_to_day = $('<select/>').append('<option val="" disabled selected>Add</option>');
+                    for (var i = 1; i < $('.day_area').length + 1; i++) {
+                        add_to_day.append($('<option/>').text('Day ' + i).val(i));
+                    }
+
+                    for (var i = 0; i < venues.length; i++) {
+                        var price = '';
+                        if (venues[i].hasOwnProperty('price')) {
+                            if (venues[i].price.tier == 4) {
+                            price = '<span><span>$$$$</span></span>'
+                            } else if (venues[i].price.tier == 3) {
+                                price = '<span><span>$$$</span><span class="light_price">$</span></span>'
+                            } else if (venues[i].price.tier == 2) {
+                                price = '<span><span>$$</span><span class="light_price">$$</span></span>'
+                            } else if (venues[i].price.tier == 1) {
+                                price = '<span><span>$</span><span class="light_price">$$$</span></span>'
+                            }
+                        }
+
+                        $('#search_results').append(
+                            $('<div/>')
+                                .addClass('result')
+                                .append(
+                                    $('<div/>')
+                                        .addClass('venue_image_area')
+                                        .append(
+                                            $('<img/>')
+                                                .attr('id', 'image_' + venues[i].id)
+                                                .attr('src', venues[i].photos.groups[0].items[0].prefix + '100x100' + venues[i].photos.groups[0].items[0].suffix)
+                                        )
+                                ).append(
+                                    $('<div/>')
+                                        .addClass('venue_info_area')
+                                        .append(
+                                            $('<h4/>')
+                                                .attr('id', 'name_' + venues[i].id)
+                                                .text(venues[i].name)
+                                        ).append(
+                                            $('<span/>')
+                                                .text(venues[i].rating)
+                                                .css('background-color', '#' + venues[i].ratingColor)
+                                                .addClass('venue_rating')
+                                        ).append(
+                                            $(price)
+                                                .addClass('venue_price')
+                                        ).append(
+                                            add_to_day.clone().on('change', {venue: venues[i]}, addItem)
+                                        )
+                                )
+                        );
+
+                        var marker_image = document.createElement('img');
+                        marker_image.src = '/static/images/map_marker.png';
+                        var marker = new mapboxgl.Marker(marker_image, {offset: [-9, -32]}).setLngLat([venues[i].location.lng, venues[i].location.lat]).addTo(map);
+                        markers.push(marker);
+                    }
+                }
+
+                function convertLatLngToString(coordinates) {
+                    var result = coordinates.lat + ',' + coordinates.lng;
+                    return result;
+                }
+
+                function removeMarkers() {
+                    for (var i = 0; i < markers.length; i++) {
+                        markers[i].remove();
+                    }
+                    markers = [];
+                }
+
+                function addItem(event) {
+                    var day_number = event.target.value;
+                    var day_id = document.getElementsByClassName('day_area')[day_number - 1].id.slice(4);
+                    var venue = event.data.venue;
+                    var new_item = {
+                        'item_name': venue.name,
+                        'item_longitude': venue.location.lng,
+                        'item_latitude': venue.location.lat,
+                        'day': 'http://' + server_host + ':' + server_port + '/api/days/' + day_id + '/'
+                    }
+                    event.target.selectedIndex = 0;
+                    console.log(new_item);
+
+                    $.ajax({
+                        type: 'POST',
+                        url: 'http://' + server_host + ':' + server_port + '/api/items/',
+                        beforeSend: function (request) {
+                            request.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+                        },
+                        data: new_item,
+                        success: function(item) {
+                            //Update page
+                            console.log(item);
+                            var item_insert = '<h4 id="item_' + item.id + '" class="movable item" onmousedown="pickUp(this)" onmouseup="drop(this)">' + item.item_name + '</h4>';
+                            $(item_insert).insertBefore('div#add_area_day_' + day_id)
+                            $('input#new_item_day_' + day_id).val('');
+                        },
+                    });
+                }
+            </script>
+            {% endif %}
         </div>
         {% endif %}
         <div id="empty_space"></div>

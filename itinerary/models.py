@@ -50,8 +50,8 @@ class Item(models.Model):
     item_description = models.CharField(max_length=1000, null=True)
     start_time = models.DateTimeField(null=True)
     end_time = models.DateTimeField(null=True)
-    item_longitude = models.DecimalField(decimal_places=6, max_digits=10, null=True)
-    item_latitude = models.DecimalField(decimal_places=6, max_digits=10, null=True)
+    item_longitude = models.DecimalField(decimal_places=15, max_digits=18, null=True)
+    item_latitude = models.DecimalField(decimal_places=15, max_digits=18, null=True)
     day = models.ForeignKey(Day, on_delete=models.CASCADE)
     user_added = models.ForeignKey(User)
 

@@ -191,11 +191,14 @@ def shareWithFriends(request):
                     trip.shared_users.add(user)
             return HttpResponse("Friends added to trip")
 
+#Update all the positions of items in a trip
 def updateItemPositions(request):
+    #Get items from the post request as an array
     items = request.POST.getlist('items[]', '0')
+    #Covert each item in the array into a json object
     for index in range(len(items)):
         items[index] = json.loads(items[index])
-    print(items)
+    #If items are part of this trip, update their day and positions
     if validateItems(request, items):
         for item in items:
             item_object = Item.objects.get(id=item['item_id'])
@@ -206,8 +209,11 @@ def updateItemPositions(request):
     else:
         return HttpResponse("Something went wrong")
 
+#Make sure all items are from the same trip
 def validateItems(request, items):
+    #The current trip should be the one that user has in their session
     current_trip = Trip.objects.get(id=request.session['current_trip'])
+    #Loop through items and check each of their trip ids
     for item in items:
         if Item.objects.get(id=item['item_id']).day.trip != current_trip:
             return False
@@ -253,23 +259,28 @@ def getFoursquareResults(request):
         url = 'https://api.foursquare.com/v2/venues/explore?client_id=' + Ids.foursquare_id + '&client_secret=' + Ids.foursquare_secret + '&v=20170702&m=foursquare&limit=10&offset=' + str(offset) + '&query=' + query + '&ll=' + ll + '&radius=' + radius + '&sortByDistance=0&time=any&day=any&venuePhotos=1'
 
         response = requests.get(url).json()
-        print(response)
-        complete_response = {}
-        complete_response['venues'] = []
+        cropped_response = {}
+        cropped_response['venues'] = []
         for group in response['response']['groups']:
             for item in group['items']:
-                complete_venue = requests.get('https://api.foursquare.com/v2/venues/' + item['venue']['id'] + '?client_id=' + Ids.foursquare_id + '&client_secret=' + Ids.foursquare_secret + '&v=20170702&m=foursquare').json()['response']['venue']
-                #print(photo_response)
-                complete_response['venues'].append(complete_venue)
+                cropped_response['venues'].append(item['venue'])
 
-        return JsonResponse(complete_response)
+        return JsonResponse(cropped_response)
+
+def getFoursquareVenue(request):
+    if request.method == 'GET':
+        id = request.GET.get('id')
+        url = 'https://api.foursquare.com/v2/venues/' + id + '?client_id=' + Ids.foursquare_id + '&client_secret=' + Ids.foursquare_secret + '&v=20170702&m=foursquare&'
+        response = requests.get(url).json()['response']['venue']
+
+        return JsonResponse(response)
 
 # This takes in a list of foursquare venue_id
 def getFourSquareEvents(venueIdList):
     complete_response = {}
     complete_response['events'] = []
     for vid in venueIdList:
-        complete_event = requests.get('https://api.foursquare.com/v2/venues/' + vid + '/events' + '?client_id=' + Ids.foursquare_id + '&client_secret=' + Ids.foursquare_secret)
+        complete_event = requests.get('https://api.foursquare.com/v2/venues/' + vid + '/events' + '?client_id=' + Ids.foursquare_id + '&client_secret=' + Ids.foursquare_secret).json()
         complete_response['events'].append(complete_event)
     return JsonResponse(complete_response)
 
