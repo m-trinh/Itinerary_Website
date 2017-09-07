@@ -165,6 +165,11 @@
                     });
                 }
 
+                var interested_items = [];
+                {% for item in interested %}
+                    interested_items.push('{{item.fsq_id}}');
+                {% endfor %}
+
                 var markers = [];
                 function showResults(venues) {
                     $('#search_results').empty();
@@ -187,6 +192,16 @@
                             } else if (venues[i].price.tier == 1) {
                                 price = '<span><span>$</span><span class="light_price">$$$</span></span>'
                             }
+                        }
+
+                        var button_function;
+                        var toggled;
+                        if (interested_items.indexOf(venues[i].id) == -1) {
+                            button_function = addItem;
+                            toggled = 'toggled_off';
+                        } else {
+                            button_function = removeFromInterested;
+                            toggled = 'toggled_on';
                         }
 
                         $('#search_results').append(
@@ -220,8 +235,8 @@
                                         ).append(
                                             $('<span>')
                                                 .text('Interested')
-                                                .addClass('interested_button')
-                                                .on('click', {venue: venues[i]}, addItem)
+                                                .addClass('interested_button ' + toggled)
+                                                .on('click', {venue: venues[i]}, button_function)
                                         )
                                 )
                         );
@@ -247,6 +262,9 @@
 
                 function addItem(event) {
                     var venue = event.data.venue;
+                    var button = event.target;
+                    $(button).removeClass('toggled_off').addClass('toggled_on');
+                    $(button).off('click').on('click', {venue: venue}, removeFromInterested);
                     var new_item = {
                         'fsq_id': venue.id,
                         'item_name': venue.name,
@@ -263,7 +281,7 @@
                     }
 
                     event.target.selectedIndex = 0;
-                    console.log(new_item);
+                    console.log('Added');
 
                     $.ajax({
                         type: 'POST',
@@ -284,6 +302,29 @@
                             }
                         },
                     });
+                }
+
+                function removeFromInterested(event) {
+                    var venue = event.data.venue;
+                    var button = event.target;
+                    $(button).removeClass('toggled_on').addClass('toggled_off');
+                    $(button).off('click').on('click', {venue: venue}, addItem);
+
+                    $.ajax({
+                        type: 'POST',
+                        url: 'http://' + server_host + ':' + server_port + '/removeFromInterested',
+                        beforeSend: function (request) {
+                            request.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+                        },
+                        data: {id: venue.id},
+                        success: function(response) {
+                            console.log(response);
+                            //Update page
+                            var item_id = response.item_id;
+                            $('#item_' + item_id).remove();
+                        },
+                    });
+                    console.log('Removed')
                 }
 
                 var days = [];

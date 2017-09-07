@@ -287,6 +287,14 @@ body {
     margin-left:5px;
 }
 
+.interested_button.toggled_off {
+    background-color:white;
+}
+
+.interested_button.toggled_on {
+    background-color:yellow;
+}
+
 #interested_list {
     display:none;
 }

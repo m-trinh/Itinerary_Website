@@ -309,9 +309,21 @@ def updateStartLocations(request):
                 day.day_start_address = address
                 day.save()
             else:
-                return JsonResponse({'error', 'You do not have permission to edit this trip'})
+                return JsonResponse({'error': 'You do not have permission to edit this trip'})
 
         return JsonResponse({'address': address})
+
+def removeFromInterested(request):
+    if request.method == 'POST':
+        trip_id = request.session['current_trip']
+        permissions = request.session['trip_permission']
+        if permissions == 'Creator' or permissions == 'Can Edit':
+            fsq_id = request.POST.get('id');
+            print(fsq_id)
+            item = Item.objects.get(trip_id=trip_id, day_id=None, fsq_id=fsq_id)
+            item_id = item.id
+            item.delete()
+            return JsonResponse({'item_id': item_id})
 
 def addItem(request):
     day_id = request.POST.get('day_id')
