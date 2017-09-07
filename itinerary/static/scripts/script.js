@@ -45,79 +45,6 @@ function getCookie(name) {
 //     });
 // }
 
-var friends_list = [];
-var already_found = false;
-function showShareModal() {
-    $('#modal').show();
-    if (!already_found) {
-        $.ajax({
-            type: 'POST',
-            url: 'http://' + server_host + ':' + server_port + '/getFriends/',
-            beforeSend: function (request) {
-                request.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-            },
-            success: function(friends) {
-                console.log(friends);
-                already_found = true;
-                for (var i = 0; i < friends['unshared'].length; i++) {
-                    friend = friends['unshared'][i];
-                    $('div#friends_box').append('<span id="friend_' + friends_list.length + '" onclick="switchFriend(this)" class="share_friends">' + friend.name + '</span>');
-                    friend.shared = false;
-                    friends_list.push(friend);
-                }
-
-                for (var i = 0; i < friends['shared'].length; i++) {
-                    friend = friends['shared'][i];
-                    $('div#shared_box').append('<span id="friend_' + friends_list.length + '" onclick="switchFriend(this)" class="share_friends">' + friend.name + '</span>');
-                    friend.shared = true;
-                    friends_list.push(friend);
-                }
-            },
-        });
-    }
-}
-
-function switchFriend(element) {
-    console.log(element.parentElement.id);
-    var parent = element.parentElement.id;
-    var index = parseInt(element.id.slice(7));
-    if (parent == 'friends_box') {
-        $('div#shared_box').append(element);
-        friends_list[index].shared = true;
-    } else if (parent == 'shared_box') {
-        $('div#friends_box').append(element);
-        friends_list[index].shared = false;
-    }
-    console.log(friends_list[index]);
-}
-
-function hideModal() {
-    $('#modal').hide();
-}
-
-function shareWithFriends() {
-    var share_ids = [];
-    for (var i = 0; i < friends_list.length; i++) {
-        if (friends_list[i].shared) {
-            share_ids.push(friends_list[i].id);
-        }
-    }
-
-    console.log(share_ids);
-
-    $.ajax({
-        type: 'POST',
-        url: 'http://' + server_host + ':' + server_port + '/shareWithFriends/',
-        beforeSend: function (request) {
-            request.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-        },
-        data: {'id_list': share_ids},
-        success: function(response) {
-            hideModal();
-        },
-    });
-}
-
 var moving_item = null;
 var items_list = null;
 function pickUp(element) {
@@ -140,7 +67,8 @@ function drop(element) {
     moving_item = null;
     $("body").removeClass("not_selectable");
     clearSelection();
-    updateItems();
+    var new_day = element.parentElement;
+    updateItems(new_day);
 }
 
 function clearSelection() {
@@ -151,16 +79,23 @@ function clearSelection() {
     }
 }
 
-function updateItems() {
-    var items = document.getElementsByClassName('item');
+function updateItems(day) {
+    var items = day.getElementsByClassName('item');
+    var day_id = day.id;
+    if (day_id == 'interested_list') {
+        day_id = null;
+    } else {
+        day_id = day_id.slice(4)
+    }
+    console.log(items);
     var data = {};
     data['items'] = [];
     for (var i = 0; i < items.length; i++) {
-        var day_id = parseInt(items[i].parentElement.id.slice(4));
         var position = $("#" + items[i].parentElement.id + " .item").index(items[i]) + 1;
         var item = {'item_id': parseInt(items[i].id.slice(5)), 'day_id': day_id, 'position': position};
         data['items'].push(JSON.stringify(item));
     }
+    console.log(data);
     $.ajax({
         type: 'POST',
         url: 'http://' + server_host + ':' + server_port + '/updateItemPositions/',
@@ -177,27 +112,6 @@ function updateItems() {
 // function hasClass(element, cls) {
 //     return (' ' + element.className + ' ').indexOf(' ' + cls + ' ') > -1;
 // }
-
-//Exit modal if user clicks outside the box
-window.onclick = function(event) {
-    var modal = document.getElementById('modal');
-    if (event.target == modal) {
-        hideModal();
-    }
-}
-
-window.onmousemove = function(event) {
-    if (moving_item) {
-        moving_item.style.left = event.clientX - 60 + "px";
-        moving_item.style.top = event.clientY - 20 + "px";
-        for (var i = 0; i < items_list.length; i++) {
-            if (event.clientY < items_list[i].getBoundingClientRect().top) {
-                $("#empty_space").insertBefore(items_list[i]);
-                break;
-            }
-        }
-    }
-}
 
 past_trips_loaded = false;
 function loadPastTrips() {
@@ -224,42 +138,122 @@ function loadPastTrips() {
     }
 }
 
-//For the Google Places API
-var map;
-var autocomplete
+var autocomplete_options = null;
+var current_option = null;
+var old_query = '';
+var marker_image = document.createElement('img');
+marker_image.src = '/static/images/map_marker.png';
+var marker = null;
 
-function initMap() {
-    //Center the map on the US my default
-    //TODO: Create an array of different cities and randomly choose one of those
-    var us = {lat: 37.1, lng: -95.7};
-
-    map = new google.maps.Map(document.getElementById('map'), {
-        center: {lat: 37.1, lng: -95.7},
-        zoom: 3,
-        mapTypeControl: false,
-        panControl: false,
-        zoomControl: false,
-        streetViewControl: false
+function searchAutocomplete(query, type, click_function) {
+    $.get('https://api.mapbox.com/geocoding/v5/mapbox.places/'+ query + '.json?types=' + type + '&language=en&access_token=' + mapboxgl.accessToken, function(data, status){
+        if (data) {
+            $("#autocomplete_area").show();
+            $("#autocomplete_area").empty();
+            for (var i = 0; i < data.features.length; i++) {
+                var name = data.features[i].place_name;
+                if (data.features[i].matching_place_name) {
+                    name = name + ", " + data.features[i].matching_place_name;
+                }
+                $("#autocomplete_area").append('<p class="autocomplete_options" onclick="' + click_function + '(' + i + ')">' + name + '</p>');
+            }
+            autocomplete_options = data.features;
+            current_option = null;
+        } else {
+            $("#autocomplete_area").hide();
+        }
     });
-
-    //Autocomplete is connected to 'id_location' input and only returns cities
-    //TODO: Allow it to autocomplete cities and addresses
-    autocomplete = new google.maps.places.Autocomplete(
-        /** @type {!HTMLInputElement} */ (
-            document.getElementById('id_location')), {
-            types: ['(cities)']
-        });
-
-    autocomplete.addListener('place_changed', onPlaceChanged);
 }
 
-//If an autocomplete option is selected, go to that place in the map
-function onPlaceChanged() {
-    var place = autocomplete.getPlace();
-    if (place.geometry) {
-        map.panTo(place.geometry.location);
-        map.setZoom(15);
-    } else {
-        document.getElementById('autocomplete').placeholder = 'Enter a city';
+function navigateAutocomplete(event) {
+    if ($("#autocomplete_area").is(":visible")) {
+        if (event.keyCode == 40) {
+            event.preventDefault();
+            if (current_option == null) {
+                current_option = -1;
+            }
+            current_option = (current_option + 1) % autocomplete_options.length;
+        } else if (event.keyCode == 38) {
+            event.preventDefault();
+            if (current_option == null) {
+                current_option = 0;
+            }
+            current_option = (current_option - 1) % autocomplete_options.length;
+        }
+        $(".autocomplete_options").eq(current_option).addClass("autocomplete_focus").siblings().removeClass("autocomplete_focus");
+        if (event.keyCode == 13) {
+            event.preventDefault();
+            $(".autocomplete_options").eq(current_option).click();
+        }
     }
 }
+
+function showAutocomplete(event) {
+    if ($("#autocomplete_area").children().length > 0) {
+        $("#autocomplete_area").show();
+    }
+}
+
+$("#autocomplete_area").hover(function() {
+    $(".autocomplete_options").removeClass("autocomplete_focus");
+    current_option = null;
+});
+
+function goToLocation(index, map) {
+    if (autocomplete_options[index].bbox) {
+        map.fitBounds(autocomplete_options[index].bbox);
+    } else {
+        map.flyTo({center: autocomplete_options[index].center, zoom: 17});
+    }
+    if (marker == null) {
+        marker = new mapboxgl.Marker(marker_image, {offset: [-9, -32]}).setLngLat(autocomplete_options[index].center).addTo(map)
+    } else {
+        marker.setLngLat(autocomplete_options[index].center);
+    }
+    var name = autocomplete_options[index].place_name;
+    if (autocomplete_options[index].matching_place_name) {
+        name = name + ", " + autocomplete_options[index].matching_place_name;
+    }
+    input_box.val(name);
+    old_query = name;
+}
+
+// //For the Google Places API
+// var map;
+// var autocomplete
+
+// function initMap() {
+//     //Center the map on the US my default
+//     //TODO: Create an array of different cities and randomly choose one of those
+//     var us = {lat: 37.1, lng: -95.7};
+
+//     map = new google.maps.Map(document.getElementById('map'), {
+//         center: {lat: 37.1, lng: -95.7},
+//         zoom: 3,
+//         mapTypeControl: false,
+//         panControl: false,
+//         zoomControl: false,
+//         streetViewControl: false
+//     });
+
+//     //Autocomplete is connected to 'id_location' input and only returns cities
+//     //TODO: Allow it to autocomplete cities and addresses
+//     autocomplete = new google.maps.places.Autocomplete(
+//         /** @type {!HTMLInputElement} */ (
+//             document.getElementById('id_location')), {
+//             types: ['(cities)']
+//         });
+
+//     autocomplete.addListener('place_changed', onPlaceChanged);
+// }
+
+// //If an autocomplete option is selected, go to that place in the map
+// function onPlaceChanged() {
+//     var place = autocomplete.getPlace();
+//     if (place.geometry) {
+//         map.panTo(place.geometry.location);
+//         map.setZoom(15);
+//     } else {
+//         document.getElementById('autocomplete').placeholder = 'Enter a city';
+//     }
+// }

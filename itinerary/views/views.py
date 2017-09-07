@@ -11,6 +11,7 @@ from itinerary.views.serializers import TripSerializer, DaySerializer, ItemSeria
 import requests
 import facebook
 import json
+import decimal
 
 def index(request):
     return render(request, 'home.html')
@@ -79,7 +80,8 @@ def showTrip(request, tripID):
             for day in days:
                 items = Item.objects.filter(day_id=day.id).order_by('item_position')
                 day.items = items
-            return render(request, 'showTrip.html', {'trip': trip, 'days': days, 'permissions': response})
+            interestedItems = Item.objects.filter(trip_id=trip.id, day_id=None)
+            return render(request, 'showTrip.html', {'trip': trip, 'days': days, 'interested': interestedItems, 'permissions': response})
         else:
             #If user can't access trip
             return render(request, 'showTrip.html', {'error': 'You do not have access to this trip'})
@@ -202,8 +204,12 @@ def updateItemPositions(request):
     if validateItems(request, items):
         for item in items:
             item_object = Item.objects.get(id=item['item_id'])
-            item_object.day = Day.objects.get(id=item['day_id'])
-            item_object.item_position = item['position']
+            if item['day_id'] == None:
+                item_object.day = None
+                item_object.item_position = None
+            else:
+                item_object.day = Day.objects.get(id=item['day_id'])
+                item_object.item_position = item['position']
             item_object.save()
         return HttpResponse("Items updated")
     else:
@@ -215,8 +221,11 @@ def validateItems(request, items):
     current_trip = Trip.objects.get(id=request.session['current_trip'])
     #Loop through items and check each of their trip ids
     for item in items:
-        if Item.objects.get(id=item['item_id']).day.trip != current_trip:
+        if Item.objects.get(id=item['item_id']).trip != current_trip:
             return False
+    permissions = canViewTrip(request, current_trip)
+    if permissions == 'Can View' or not permissions:
+        return False
     return True
 
 def getYelpToken():
@@ -283,6 +292,26 @@ def getFourSquareEvents(venueIdList):
         complete_event = requests.get('https://api.foursquare.com/v2/venues/' + vid + '/events' + '?client_id=' + Ids.foursquare_id + '&client_secret=' + Ids.foursquare_secret).json()
         complete_response['events'].append(complete_event)
     return JsonResponse(complete_response)
+
+def updateStartLocations(request):
+    if request.method == 'POST':
+        longitude = request.POST.get('longitude')
+        latitude = request.POST.get('latitude')
+        day_ids = request.POST.getlist('days[]', '0')
+        search_result = requests.get('https://api.mapbox.com/geocoding/v5/mapbox.places/' + longitude + ',' + latitude + '.json?types=address&language=en&access_token=' + Ids.mapbox_token).json()
+        address = search_result['features'][0]['place_name_en']
+        for day_id in day_ids:
+            day = Day.objects.get(id=day_id)
+            permission = canViewTrip(request, day.trip)
+            if permission == "Creator" or permission == "Can Edit":
+                day.day_start_longitude = decimal.Decimal(longitude)
+                day.day_start_latitude = decimal.Decimal(latitude)
+                day.day_start_address = address
+                day.save()
+            else:
+                return JsonResponse({'error', 'You do not have permission to edit this trip'})
+
+        return JsonResponse({'address': address})
 
 def addItem(request):
     day_id = request.POST.get('day_id')

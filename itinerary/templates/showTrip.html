@@ -24,6 +24,9 @@
         <div id="trip_itinerary">
             <div class="inner">
                 <h2>{{ trip.trip_name }}</h2>
+                {% if permissions == "Can Edit" or permissions == "Creator" %}
+                <p><a onclick="changeStartLocations()" href="#">Set or Change Where You'll Be Staying</a></p>
+                {% endif %}
                 {% for day in days %}
                     <div class="day_area" id="day_{{day.id}}">
                         <h3>{{day.date}}</h3>
@@ -45,10 +48,10 @@
                 {% endfor %}
                 {% if permissions == "Creator" %}
                 <button onclick="showShareModal()">Share With Friends</button>
-                <div id="modal">
+                <div id="modal" class="modal">
                     <div id="share_modal">
                         <div id="share_modal_header">
-                            <span id="close_button" onclick="hideModal()">Close</span>
+                            <span class="close_button" onclick="hideModal()">Close</span>
                             <h3>Choose Friends Who Can View And Add To Your Plans</h3>
                         </div>
                         <div id="friends_box"></div>
@@ -58,15 +61,52 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
+                {% if permissions == "Can Edit" or permissions == "Creator" %}
+                <div id="day_modal" class="modal">
+                    <div id="day_modal_content">
+                        <div id="day_modal_header">
+                            <span class="close_button" onclick="hideDayModal()">Close</span>
+                            <h3>Where Will You Be Staying During Your Trip?</h3>
+                        </div>
+                        <div id="day_map" style="width: 600px; height: 300px;"></div>
+                        <div id="find_start_location">
+                            <input type="text" id="search_location">
+                            <button onclick="searchLocation()">Search</button>
+                            <div id="autocomplete_area"></div>
+                        </div>
+                        <table id="current_days">
+                            {% for day in days %}
+                                <tr>
+                                    <td>
+                                        <h3>Day {{ forloop.counter }}: {{day.date}}</h3>
+                                        {% if day.day_start_address %}
+                                        <p class="day_start_address">{{day.day_start_address}}</p>
+                                        {% else %}
+                                        <p class="day_start_address">------------</p>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" class="select_days" value="{{day.id}}">
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </table>
+                    <button onclick="updateStartingLocations()">Save</button>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
         <div id="trip_functions">
+            <div id="trip_tabs">
+                <div class="tab highlighted" onclick="showSearch()">Search</div>
+                <div class="tab" onclick="showInterested()">Interested</div>
+            </div>
             <div id="map" style='width: 100%; height: 400px;'></div>
             <script>
                 var trip_lat = {{ trip.latitude }};
                 var trip_lng = {{ trip.longitude }};
-                console.log(trip_lat + ' ' + trip_lng);
-                console.log("{{trip}}");
                 mapboxgl.accessToken = 'pk.eyJ1IjoiaGVpcG8iLCJhIjoiY2o0NGt5ZjUwMDBucjJxbXFkY3NocDB6NiJ9.hpEpBTqgwgHHW-gSA6ZNzg';
                 var map = new mapboxgl.Map({
                     container: 'map',
@@ -78,10 +118,16 @@
             </script>
 
             {% if permissions == "Can Edit" or permissions == "Creator" %}
+
             <div id="find_item">
                 <input type="text" id="search_item">
                 <button onclick="findThingsToDo()">Search</button>
                 <div id="search_results"></div>
+            </div>
+            <div id="interested_list">
+                {% for item in interested %}
+                    <h4 id="item_{{item.id}}" class="movable item" onmousedown="pickUp(this)" onmouseup="drop(this)">{{item.item_name}}</h4>
+                {% endfor %}
             </div>
             <script>
                 current_query = null;
@@ -171,14 +217,19 @@
                                                 .addClass('venue_price')
                                         ).append(
                                             add_to_day.clone().on('change', {venue: venues[i]}, addItem)
+                                        ).append(
+                                            $('<span>')
+                                                .text('Interested')
+                                                .addClass('interested_button')
+                                                .on('click', {venue: venues[i]}, addItem)
                                         )
                                 )
                         );
 
                         var marker_image = document.createElement('img');
                         marker_image.src = '/static/images/map_marker.png';
-                        var marker = new mapboxgl.Marker(marker_image, {offset: [-9, -32]}).setLngLat([venues[i].location.lng, venues[i].location.lat]).addTo(map);
-                        markers.push(marker);
+                        var venue_marker = new mapboxgl.Marker(marker_image, {offset: [-9, -32]}).setLngLat([venues[i].location.lng, venues[i].location.lat]).addTo(map);
+                        markers.push(venue_marker);
                     }
                 }
 
@@ -195,15 +246,22 @@
                 }
 
                 function addItem(event) {
-                    var day_number = event.target.value;
-                    var day_id = document.getElementsByClassName('day_area')[day_number - 1].id.slice(4);
                     var venue = event.data.venue;
                     var new_item = {
+                        'fsq_id': venue.id,
                         'item_name': venue.name,
                         'item_longitude': venue.location.lng,
                         'item_latitude': venue.location.lat,
-                        'day': 'http://' + server_host + ':' + server_port + '/api/days/' + day_id + '/'
+                        'trip': 'http://' + server_host + ':' + server_port + '/api/trips/' + {{trip.id}} + '/'
                     }
+
+                    var day_number = event.target.value;
+                    var day_id = null
+                    if (day_number) {
+                        day_id = document.getElementsByClassName('day_area')[day_number - 1].id.slice(4);
+                        new_item['day'] = 'http://' + server_host + ':' + server_port + '/api/days/' + day_id + '/';
+                    }
+
                     event.target.selectedIndex = 0;
                     console.log(new_item);
 
@@ -218,15 +276,209 @@
                             //Update page
                             console.log(item);
                             var item_insert = '<h4 id="item_' + item.id + '" class="movable item" onmousedown="pickUp(this)" onmouseup="drop(this)">' + item.item_name + '</h4>';
-                            $(item_insert).insertBefore('div#add_area_day_' + day_id)
-                            $('input#new_item_day_' + day_id).val('');
+                            if (day_id) {
+                                $(item_insert).insertBefore('div#add_area_day_' + day_id)
+                                $('input#new_item_day_' + day_id).val('');
+                            } else {
+                                $('div#interested_list').append(item_insert);
+                            }
                         },
                     });
+                }
+
+                var days = [];
+                {% for day in days %}
+                days.push({
+                    id: {{day.id}},
+                    {% if day.day_start_address == None %}
+                        address: null,
+                    {% else %}
+                        address: "{{day.day_start_address}}",
+                    {% endif %}
+                    {% if day.day_start_address == None %}
+                        lng: null,
+                    {% else %}
+                        lng: {{day.day_start_longitude}},
+                    {% endif %}
+                    {% if day.day_start_address == None %}
+                        lat: null
+                    {% else %}
+                        lat: {{day.day_start_latitude}}
+                    {% endif %}
+                });
+                {% endfor %}
+
+                var day_map = null;
+                function changeStartLocations() {
+                    $("#day_modal").show();
+                    if (!day_map) {
+                        day_map = new mapboxgl.Map({
+                            container: 'day_map',
+                            style: 'mapbox://styles/mapbox/streets-v10',
+                            center: [trip_lng, trip_lat], // starting position
+                            zoom: 13
+                        });
+                        day_map.addControl(new mapboxgl.NavigationControl());
+                    }
+                }
+
+                var input_box = $("#search_location");
+                var selected_day = {};
+                input_box.keyup(function(event) {
+                    var query = input_box.val();
+                    if (query && query != old_query) {
+                        old_query = query;
+                        searchAutocomplete(query, "address", "getLocation");
+                    }
+                }).keydown(navigateAutocomplete)
+                .focus(showAutocomplete);
+
+                function getLocation(index) {
+                    goToLocation(index, day_map);
+
+                    selected_day.lng = autocomplete_options[index].center[0];
+                    selected_day.lat = autocomplete_options[index].center[1];
+                }
+
+                function hideDayModal() {
+                    $("#day_modal").hide();
+                }
+
+                var friends_list = [];
+                var already_found = false;
+                function showShareModal() {
+                    $('#modal').show();
+                    if (!already_found) {
+                        $.ajax({
+                            type: 'POST',
+                            url: 'http://' + server_host + ':' + server_port + '/getFriends/',
+                            beforeSend: function (request) {
+                                request.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+                            },
+                            success: function(friends) {
+                                console.log(friends);
+                                already_found = true;
+                                for (var i = 0; i < friends['unshared'].length; i++) {
+                                    friend = friends['unshared'][i];
+                                    $('div#friends_box').append('<span id="friend_' + friends_list.length + '" onclick="switchFriend(this)" class="share_friends">' + friend.name + '</span>');
+                                    friend.shared = false;
+                                    friends_list.push(friend);
+                                }
+
+                                for (var i = 0; i < friends['shared'].length; i++) {
+                                    friend = friends['shared'][i];
+                                    $('div#shared_box').append('<span id="friend_' + friends_list.length + '" onclick="switchFriend(this)" class="share_friends">' + friend.name + '</span>');
+                                    friend.shared = true;
+                                    friends_list.push(friend);
+                                }
+                            },
+                        });
+                    }
+                }
+
+                function switchFriend(element) {
+                    console.log(element.parentElement.id);
+                    var parent = element.parentElement.id;
+                    var index = parseInt(element.id.slice(7));
+                    if (parent == 'friends_box') {
+                        $('div#shared_box').append(element);
+                        friends_list[index].shared = true;
+                    } else if (parent == 'shared_box') {
+                        $('div#friends_box').append(element);
+                        friends_list[index].shared = false;
+                    }
+                    console.log(friends_list[index]);
+                }
+
+                function hideModal() {
+                    $('#modal').hide();
+                }
+
+                function shareWithFriends() {
+                    var share_ids = [];
+                    for (var i = 0; i < friends_list.length; i++) {
+                        if (friends_list[i].shared) {
+                            share_ids.push(friends_list[i].id);
+                        }
+                    }
+
+                    $.ajax({
+                        type: 'POST',
+                        url: 'http://' + server_host + ':' + server_port + '/shareWithFriends/',
+                        beforeSend: function (request) {
+                            request.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+                        },
+                        data: {'id_list': share_ids},
+                        success: function(response) {
+                            hideModal();
+                        },
+                    });
+                }
+
+                function updateStartingLocations() {
+                    var data = {};
+                    data['days'] = [];
+                    data['longitude'] = selected_day.lng;
+                    data['latitude'] = selected_day.lat;
+                    var checked_indices = [];
+                    $('.select_days:checked').each(function(i) {
+                        data['days'].push($(this).val());
+                        checked_indices.push($('.select_days').index(this));
+                    });
+                    $.ajax({
+                        type: 'POST',
+                        url: 'http://' + server_host + ':' + server_port + '/updateStartLocations/',
+                        beforeSend: function (request) {
+                            request.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+                        },
+                        data: data,
+                        success: function(response) {
+                            console.log(checked_indices);
+                            for (var i = 0; i < checked_indices.length; i++) {
+                                $('.day_start_address').eq(checked_indices[i]).text(response.address);
+                            }
+                        },
+                    });
+                }
+
+                function showSearch() {
+                    $('#interested_list').hide();
+                    $('#find_item').show();
+                }
+
+                function showInterested() {
+                    $('#find_item').hide();
+                    $('#interested_list').show();
+                }
+
+                var share_modal = document.getElementById('share_modal');
+                var day_modal = document.getElementById('day_modal');
+                //Exit modal if user clicks outside the box
+                window.onclick = function(event) {
+                    if (event.target == share_modal) {
+                        hideModal();
+                    } else if (event.target == day_modal) {
+                        hideDayModal();
+                    } else if (event.target != document.getElementById("search_location") && event.target != document.getElementById("autocomplete_area")) {
+                        $("#autocomplete_area").hide();
+                    }
+                }
+
+                window.onmousemove = function(event) {
+                    if (moving_item) {
+                        moving_item.style.left = event.clientX - 60 + "px";
+                        moving_item.style.top = event.clientY - 20 + "px";
+                        for (var i = 0; i < items_list.length; i++) {
+                            if (event.clientY < items_list[i].getBoundingClientRect().top) {
+                                $("#empty_space").insertBefore(items_list[i]);
+                                break;
+                            }
+                        }
+                    }
                 }
             </script>
             {% endif %}
         </div>
-        {% endif %}
         <div id="empty_space"></div>
     {% endif %}
 </body>

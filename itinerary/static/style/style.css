@@ -11,8 +11,7 @@ body {
 #autocomplete_area {
     display:none;
     position:absolute;
-    width:290px;
-    margin-left:66px;
+    width:300px;
     border:1px solid black;
     background-color:white;
 }
@@ -50,7 +49,7 @@ body {
     float:right;
 }
 
-#modal {
+.modal {
     display:none;
     position:fixed;
     z-index:3;
@@ -68,6 +67,16 @@ body {
     margin:10% auto;
     background-color:white;
     padding:20px;
+}
+
+#day_modal_content {
+    width:600px;
+    margin:10% auto;
+    background-color:white;
+}
+
+#day_modal_header {
+    padding:5px;
 }
 
 #friends_box, #shared_box {
@@ -89,7 +98,7 @@ body {
     background-color:#cce6ff;
 }
 
-#close_button {
+.close_button {
     background-color: #aaa;
     float: right;
     font-weight: bold;
@@ -263,6 +272,32 @@ body {
 #venue_page h3 {
     font-weight:normal;
     font-size:32px;
+}
+
+.inline_block {
+    display:inline-block;
+}
+
+.interested_button {
+    display:inline-block;
+    padding:3px 5px;
+    border:1px solid black;
+    border-radius:3px;
+    cursor:pointer;
+    margin-left:5px;
+}
+
+#interested_list {
+    display:none;
+}
+
+.tab {
+    display:inline-block;
+    padding:10px 0;
+    cursor:pointer;
+    width:50%;
+    font-size:16px;
+    text-align:center;
 }
 
 .listing-group {

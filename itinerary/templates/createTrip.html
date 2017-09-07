@@ -16,10 +16,10 @@
 <body>
 
     <div id="map" style='width: 1200px; height: 900px;'> </div>
-    
+
     <nav id='listing-group' class='listing-group'>
         <input type='checkbox' id='scrollZoom' checked='checked'>
-        <label for='scrollZoom'>Scroll zoom</label> 
+        <label for='scrollZoom'>Scroll zoom</label>
         <input type='checkbox' id='boxZoom' checked='checked'>
         <label for='boxZoom'>Box zoom</label>
         <input type='checkbox' id='dragRotate' checked='checked'>
@@ -39,8 +39,10 @@
         <div>
             {{ form.location.errors }}
             <label for="{{ form.location.id_for_label }}">Location: </label>
-            {{ form.location }}
-            <div id="autocomplete_area"></div>
+            <div class="inline_block">
+                {{ form.location }}
+                <div id="autocomplete_area"></div>
+            </div>
         </div>
         {{ form.longitude }}
         {{ form.latitude }}
@@ -93,15 +95,10 @@
         var layers = document.getElementById('listing-group');
 
         $("#create_submit").prop('disabled', true);
+        var input_box = $("#id_location");
 
-        var autocomplete_options = null;
-        var current_option = null;
-        var old_query = '';
-        var marker_image = document.createElement('img');
-        marker_image.src = '/static/images/map_marker.png';
-        var marker = new mapboxgl.Marker(marker_image, {offset: [-9, -32]}).setLngLat([-71.0571, 42.3601]).addTo(map);
-        $("#id_location").keyup(function(event) {
-            var query = $("#id_location").val();
+        input_box.keyup(function(event) {
+            var query = input_box.val();
             if (query != old_query) {
                 $("#id_longitude").val("");
                 $("#id_latitude").val("");
@@ -109,62 +106,11 @@
                 old_query = query;
 
                 if (query) {
-                    $.get('https://api.mapbox.com/geocoding/v5/mapbox.places/'+ query + '.json?types=place,address&language=en&access_token=' + mapboxgl.accessToken, function(data, status){
-                        if (data) {
-                            if (data.features[0].bbox) {
-                                map.fitBounds(data.features[0].bbox);
-                            } else {
-                                map.flyTo({center: data.features[0].center, zoom: 17});
-                            }
-                            marker.setLngLat(data.features[0].center);
-                            $("#autocomplete_area").show();
-                            $("#autocomplete_area").empty();
-                            for (var i = 0; i < data.features.length; i++) {
-                                var name = data.features[i].place_name;
-                                if (data.features[i].matching_place_name) {
-                                    name = name + ", " + data.features[i].matching_place_name;
-                                }
-                                $("#autocomplete_area").append('<p class="autocomplete_options" onclick="goToLocation(' + i + ')">' + name + '</p>');
-                            }
-                            autocomplete_options = data.features;
-                            current_option = null;
-                        } else {
-                            $("#autocomplete_area").hide();
-                        }
-                    });
+                    searchAutocomplete(query, "place,address", "updateCoordinates");
                 }
             }
-        }).keydown(function(event) {
-            if ($("#autocomplete_area").is(":visible")) {
-                if (event.keyCode == 40) {
-                    event.preventDefault();
-                    if (current_option == null) {
-                        current_option = -1;
-                    }
-                    current_option = (current_option + 1) % autocomplete_options.length;
-                } else if (event.keyCode == 38) {
-                    event.preventDefault();
-                    if (current_option == null) {
-                        current_option = 0;
-                    }
-                    current_option = (current_option - 1) % autocomplete_options.length;
-                }
-                $(".autocomplete_options").eq(current_option).addClass("autocomplete_focus").siblings().removeClass("autocomplete_focus");
-                if (event.keyCode == 13) {
-                    event.preventDefault();
-                    $(".autocomplete_options").eq(current_option).click();
-                }
-            }
-        }).focus(function() {
-            if ($("#autocomplete_area").children().length > 0) {
-                $("#autocomplete_area").show();
-            }
-        });
-
-        $("#autocomplete_area").hover(function() {
-            $(".autocomplete_options").removeClass("autocomplete_focus");
-            current_option = null;
-        });
+        }).keydown(navigateAutocomplete)
+        .focus(showAutocomplete);
 
         window.onclick = function(event) {
             if (event.target != document.getElementById("id_location") && event.target != document.getElementById("autocomplete_area")) {
@@ -172,19 +118,9 @@
             }
         }
 
-        function goToLocation(index) {
-            if (autocomplete_options[index].bbox) {
-                map.fitBounds(autocomplete_options[index].bbox);
-            } else {
-                map.flyTo({center: autocomplete_options[index].center, zoom: 17});
-            }
-            marker.setLngLat(autocomplete_options[index].center);
-            var name = autocomplete_options[index].place_name;
-            if (autocomplete_options[index].matching_place_name) {
-                name = name + ", " + autocomplete_options[index].matching_place_name;
-            }
-            $("#id_location").val(name);
-            old_query = name;
+        function updateCoordinates(index) {
+            goToLocation(index, map);
+
             $("#id_longitude").val(autocomplete_options[index].center[0]);
             $("#id_latitude").val(autocomplete_options[index].center[1]);
             $("#create_submit").prop('disabled', false);
