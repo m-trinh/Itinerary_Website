@@ -107,13 +107,11 @@ body {
 }
 
 .item {
-    display:block;
-    padding: 10px;
-    cursor:context-menu;
     width:300px;
-    border:1px solid black;
-    margin:3px 0;
-    background-color:white;
+    display:inline-block;
+}
+
+.not_selectable {
     -webkit-touch-callout: none; /* iOS Safari */
       -webkit-user-select: none; /* Safari */
        -khtml-user-select: none; /* Konqueror HTML */
@@ -123,7 +121,13 @@ body {
                                     supported by Chrome and Opera */
 }
 
-.not_selectable {
+.item_holder {
+    display:block;
+    padding: 10px;
+    cursor:context-menu;
+    margin:3px 0;
+    border:1px solid black;
+    background-color:white;
     -webkit-touch-callout: none; /* iOS Safari */
       -webkit-user-select: none; /* Safari */
        -khtml-user-select: none; /* Konqueror HTML */
@@ -163,7 +167,7 @@ body {
 }
 
 #trip_page h4 {
-    font-size:16px;
+    font-size:18px;
 }
 
 #search_places input[type="text"],
@@ -188,6 +192,8 @@ body {
 
 #search_results {
     margin-top:10px;
+    overflow-y:scroll;
+    height:555px;
 }
 
 .result {
@@ -208,8 +214,9 @@ body {
 .result h4 {
     font-size:24px;
     font-weight:normal;
-    margin-bottom:5px;
     cursor:pointer;
+    display:inline-block;
+    margin-right:10px;
 }
 
 .result h4:hover {
@@ -259,6 +266,14 @@ body {
     vertical-align:top;
 }
 
+.result .venue_info_area div {
+    margin-bottom:10px;
+}
+
+.result .venue_info_area .venue_category {
+    color:#999999;
+}
+
 #venue_photos {
     width:100%;
 }
@@ -272,6 +287,29 @@ body {
 #venue_page h3 {
     font-weight:normal;
     font-size:32px;
+}
+
+#search_navigation {
+    display:none;
+    height:27px;
+    margin:10px 0;
+}
+
+#search_navigation span {
+    display:inline-block;
+    padding:3px 5px;
+    border:1px solid black;
+    cursor:pointer;
+    width:75px;
+    text-align:center;
+}
+
+.left {
+    float:left;
+}
+
+.right {
+    float:right;
 }
 
 .inline_block {
@@ -299,6 +337,15 @@ body {
     display:none;
 }
 
+.del_item {
+    cursor:pointer;
+    float:right;
+    padding:0 6px 3px;
+    background-color:gray;
+    color:white;
+    font-weight:normal;
+}
+
 .tab {
     display:inline-block;
     padding:10px 0;
@@ -306,6 +353,24 @@ body {
     width:50%;
     font-size:16px;
     text-align:center;
+}
+
+.popup_picture {
+    display:inline-block;
+    float:left;
+}
+
+.popup_info {
+    display:inline-block;
+    margin-left:5px;
+}
+
+.mapboxgl-popup-content {
+    padding:10px !important;
+}
+
+.mapboxgl-marker {
+    cursor:pointer;
 }
 
 .listing-group {

@@ -32,7 +32,10 @@
                         <h3>{{day.date}}</h3>
                         {% if permissions == "Can Edit" or permissions == "Creator" %}
                         {% for item in day.items %}
-                            <h4 id="item_{{item.id}}" class="movable item" onmousedown="pickUp(this)" onmouseup="drop(this)">{{item.item_name}}</h4>
+                            <div class="item_holder movable">
+                                <h4 id="item_{{item.id}}" class="item" onmousedown="pickUp(this)" onmouseup="drop(this)">{{item.item_name}}</h4>
+                                <span class="del_item" onclick="moveToInterested(this, {{item.id}})">x</span>
+                            </div>
                         {% endfor %}
                         <h4 class="movable" height="0"></h4>
                         <div id="add_area_day_{{day.id}}">
@@ -118,38 +121,45 @@
             </script>
 
             {% if permissions == "Can Edit" or permissions == "Creator" %}
-
             <div id="find_item">
                 <input type="text" id="search_item">
                 <button onclick="findThingsToDo()">Search</button>
                 <div id="search_results"></div>
+                <div id="search_navigation">
+                    <span class="left">Previous</span>
+                    <span class="right">Next</span>
+                </div>
             </div>
             <div id="interested_list">
                 {% for item in interested %}
-                    <h4 id="item_{{item.id}}" class="movable item" onmousedown="pickUp(this)" onmouseup="drop(this)">{{item.item_name}}</h4>
+                    <div class="item_holder movable">
+                    <h4 id="item_{{item.id}}" class="item" onmousedown="pickUp(this)" onmouseup="drop(this)">{{item.item_name}}</h4>
+                    <span class="del_item" onclick="deleteItem({{item.id}})">x</span>
+                    </div>
                 {% endfor %}
             </div>
             <script>
-                current_query = null;
-                current_center = null;
-                current_radius = null;
+                var current_query = null;
+                var current_sw = null;
+                var current_ne = null;
                 function findThingsToDo() {
                     var bounds = map.getBounds();
-                    // var sw = convertLatLngToString(bounds.getSouthWest());
-                    // var ne = convertLatLngToString(bounds.getNorthEast());
+                    current_sw = convertLatLngToString(bounds.getSouthWest());
+                    current_ne = convertLatLngToString(bounds.getNorthEast());
 
                     current_query = $('#search_item').val();
-                    current_center = map.getCenter();
-                    current_radius = parseInt((Math.abs(bounds.getNorth() - current_center.lat)) * (Math.PI/180) * 6371000);
-                    if (current_radius > 40000) {
-                        current_radius = 40000;
-                    }
+                    // current_center = map.getCenter();
+                    // current_radius = parseInt((Math.abs(bounds.getNorth() - current_center.lat)) * (Math.PI/180) * 6371000);
+                    // if (current_radius > 40000) {
+                    //     current_radius = 40000;
+                    // }
                     getResults(1);
                 }
 
                 var current_venues = null;
                 function getResults(page) {
-                    var url = '/getFoursquareResults?query='+ current_query + '&ll=' + convertLatLngToString(current_center) + '&radius=' + current_radius + '&page=' + page;
+                    // var url = '/getFoursquareResults?query='+ current_query + '&ll=' + convertLatLngToString(current_center) + '&radius=' + current_radius + '&page=' + page;
+                    var url = '/getFoursquareResults?query='+ current_query + '&sw=' + current_sw + '&ne=' + current_ne + '&page=' + page;
 
                     $.ajax({
                         type: 'GET',
@@ -161,6 +171,16 @@
                             console.log(response);
                             current_venues = response['venues'];
                             showResults(current_venues);
+                            $('#search_navigation').show();
+
+                            $('#search_navigation .left').off('click');
+                            $('#search_navigation .right').off('click');
+
+                            if (page > 1) {
+                                $('#search_navigation .left').on('click', function() {getResults(page - 1);});
+                            }
+
+                            $('#search_navigation .right').on('click', function() {getResults(page + 1);});
                         },
                     });
                 }
@@ -171,26 +191,35 @@
                 {% endfor %}
 
                 var markers = [];
+                var popups = [];
                 function showResults(venues) {
                     $('#search_results').empty();
                     removeMarkers();
+                    removePopups();
+                    $("html, body").animate({
+                        scrollTop: 0
+                    }, 1000);
 
-                    var add_to_day = $('<select/>').append('<option val="" disabled selected>Add</option>');
-                    for (var i = 1; i < $('.day_area').length + 1; i++) {
-                        add_to_day.append($('<option/>').text('Day ' + i).val(i));
-                    }
+                    // var add_to_day = $('<select/>').append('<option val="" disabled selected>Add</option>');
+                    // for (var i = 1; i < $('.day_area').length + 1; i++) {
+                    //     add_to_day.append($('<option/>').text('Day ' + i).val(i));
+                    // }
+                    // append(
+                    //     add_to_day.clone().on('change', {venue: venues[i]}, addItem)
+                    // )
 
                     for (var i = 0; i < venues.length; i++) {
                         var price = '';
-                        if (venues[i].hasOwnProperty('price')) {
-                            if (venues[i].price.tier == 4) {
-                            price = '<span><span>$$$$</span></span>'
-                            } else if (venues[i].price.tier == 3) {
-                                price = '<span><span>$$$</span><span class="light_price">$</span></span>'
-                            } else if (venues[i].price.tier == 2) {
-                                price = '<span><span>$$</span><span class="light_price">$$</span></span>'
-                            } else if (venues[i].price.tier == 1) {
-                                price = '<span><span>$</span><span class="light_price">$$$</span></span>'
+                        if (venues[i].venue.hasOwnProperty('price')) {
+                            var currency = venues[i].venue.price.currency;
+                            if (venues[i].venue.price.tier == 4) {
+                            price = '<span><span>' + currency + currency + currency + currency + '</span></span>';
+                            } else if (venues[i].venue.price.tier == 3) {
+                                price = '<span><span>' + currency + currency + currency + '</span><span class="light_price">' + currency + '</span></span>';
+                            } else if (venues[i].venue.price.tier == 2) {
+                                price = '<span><span>' + currency + currency + '</span><span class="light_price">' + currency + currency + '</span></span>';
+                            } else if (venues[i].venue.price.tier == 1) {
+                                price = '<span><span>' + currency + '</span><span class="light_price">' + currency + currency + currency + '</span></span>';
                             }
                         }
 
@@ -213,37 +242,78 @@
                                         .append(
                                             $('<img/>')
                                                 .attr('id', 'image_' + venues[i].id)
-                                                .attr('src', venues[i].photos.groups[0].items[0].prefix + '100x100' + venues[i].photos.groups[0].items[0].suffix)
+                                                .attr('src', venues[i].photo.prefix + '100x100' + venues[i].photo.suffix)
                                         )
                                 ).append(
                                     $('<div/>')
                                         .addClass('venue_info_area')
                                         .append(
-                                            $('<h4/>')
-                                                .attr('id', 'name_' + venues[i].id)
-                                                .text(venues[i].name)
+                                            $('<div/>')
+                                                .append(
+                                                    $('<h4/>')
+                                                        .attr('id', 'name_' + venues[i].id)
+                                                        .text(venues[i].venue.name)
+                                                ).append(
+                                                    $('<span/>')
+                                                        .addClass('venue_category')
+                                                        .text(venues[i].venue.categories[0].name)
+                                                )
                                         ).append(
-                                            $('<span/>')
-                                                .text(venues[i].rating)
-                                                .css('background-color', '#' + venues[i].ratingColor)
-                                                .addClass('venue_rating')
+                                            $('<div/>')
+                                                .append(
+                                                    $('<span/>')
+                                                        .text(venues[i].venue.rating)
+                                                        .css('background-color', '#' + venues[i].venue.ratingColor)
+                                                        .addClass('venue_rating')
+                                                ).append(
+                                                    $(price)
+                                                        .addClass('venue_price')
+                                                ).append(
+                                                    $('<span>')
+                                                        .text('Interested')
+                                                        .addClass('interested_button ' + toggled)
+                                                        .on('click', {venue: venues[i].venue}, button_function)
+                                                )
                                         ).append(
-                                            $(price)
-                                                .addClass('venue_price')
-                                        ).append(
-                                            add_to_day.clone().on('change', {venue: venues[i]}, addItem)
-                                        ).append(
-                                            $('<span>')
-                                                .text('Interested')
-                                                .addClass('interested_button ' + toggled)
-                                                .on('click', {venue: venues[i]}, button_function)
+                                            $('<div/>')
+                                                .append(
+                                                    $('<span/>')
+                                                        .text(venues[i].venue.location.address + ', ' + venues[i].venue.location.city)
+                                                )
                                         )
+                                        .on('mouseenter', {index: i}, showPopup)
+                                        .on('mouseleave', {index: i}, hidePopup)
                                 )
                         );
 
+                        var popup_element = document.createElement('div');
+                        var popup_picture = document.createElement('img');
+                        popup_picture.src = venues[i].photo.prefix + '36x36' + venues[i].photo.suffix;
+                        popup_picture.className = 'popup_picture';
+
+                        var popup_info = document.createElement('div');
+                        popup_info.className = 'popup_info';
+                        var popup_title = document.createElement('h4');
+                        popup_title.innerHTML = venues[i].venue.name;
+                        var popup_address = document.createElement('p');
+                        popup_address.innerHTML = venues[i].venue.location.address;
+                        popup_info.appendChild(popup_title);
+                        popup_info.appendChild(popup_address);
+
+                        popup_element.appendChild(popup_picture);
+                        popup_element.appendChild(popup_info);
+
+                        var popup = new mapboxgl.Popup({offset: [0, -20]})
+                            .setLngLat([venues[i].venue.location.lng, venues[i].venue.location.lat])
+                            .setDOMContent(popup_element);
+                        popups.push(popup);
+
                         var marker_image = document.createElement('img');
                         marker_image.src = '/static/images/map_marker.png';
-                        var venue_marker = new mapboxgl.Marker(marker_image, {offset: [-9, -32]}).setLngLat([venues[i].location.lng, venues[i].location.lat]).addTo(map);
+                        var venue_marker = new mapboxgl.Marker(marker_image, {offset: [-9, -32]})
+                            .setLngLat([venues[i].venue.location.lng, venues[i].venue.location.lat])
+                            .setPopup(popup)
+                            .addTo(map);
                         markers.push(venue_marker);
                     }
                 }
@@ -258,6 +328,13 @@
                         markers[i].remove();
                     }
                     markers = [];
+                }
+
+                function removePopups() {
+                    for (var i = 0; i < markers.length; i++) {
+                        popups[i].remove();
+                    }
+                    popups = [];
                 }
 
                 function addItem(event) {
@@ -300,6 +377,20 @@
                             } else {
                                 $('div#interested_list').append(item_insert);
                             }
+                        },
+                    });
+                }
+
+                function deleteItem(item_id) {
+                    $.ajax({
+                        type: 'DELETE',
+                        url: 'http://' + server_host + ':' + server_port + '/api/items/' + item_id + '/',
+                        beforeSend: function (request) {
+                            request.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+                        },
+                        success: function(response) {
+                            //Delete item
+                            $('#item_' + item_id).parent().remove();
                         },
                     });
                 }
@@ -379,6 +470,16 @@
 
                     selected_day.lng = autocomplete_options[index].center[0];
                     selected_day.lat = autocomplete_options[index].center[1];
+                }
+
+                function showPopup(event) {
+                    var index = event.data.index;
+                    popups[index].addTo(map);
+                }
+
+                function hidePopup(event) {
+                    var index = event.data.index;
+                    popups[index].remove();
                 }
 
                 function hideDayModal() {

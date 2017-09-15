@@ -257,24 +257,22 @@ def getYelpResults(request):
 def getFoursquareResults(request):
     if request.method == 'GET':
         query = request.GET.get('query')
-        # sw = request.GET.get('sw')
-        # ne = request.GET.get('ne')
+        sw = request.GET.get('sw')
+        ne = request.GET.get('ne')
         # category = request.GET.get('category')
-        ll = request.GET.get('ll')
-        radius = request.GET.get('radius')
+        # ll = request.GET.get('ll')
+        # radius = request.GET.get('radius')
         page = request.GET.get('page')
         offset = (int(page) - 1) * 10
 
-        url = 'https://api.foursquare.com/v2/venues/explore?client_id=' + Ids.foursquare_id + '&client_secret=' + Ids.foursquare_secret + '&v=20170702&m=foursquare&limit=10&offset=' + str(offset) + '&query=' + query + '&ll=' + ll + '&radius=' + radius + '&sortByDistance=0&time=any&day=any&venuePhotos=1'
-
+        url = 'https://api.foursquare.com/v2/search/recommendations?client_id=' + Ids.foursquare_id + '&client_secret=' + Ids.foursquare_secret + '&v=20170702&m=foursquare&limit=10&offset=' + str(offset) + '&query=' + query + '&sw=' + sw + '&ne=' + ne + '&time=any&day=any'
+        print(url)
         response = requests.get(url).json()
-        cropped_response = {}
-        cropped_response['venues'] = []
-        for group in response['response']['groups']:
-            for item in group['items']:
-                cropped_response['venues'].append(item['venue'])
+        print(response)
+        for item in response['response']['group']['results']:
+            item.pop('snippets', None)
 
-        return JsonResponse(cropped_response)
+        return JsonResponse({'venues': response['response']['group']['results']})
 
 def getFoursquareVenue(request):
     if request.method == 'GET':
@@ -312,6 +310,16 @@ def updateStartLocations(request):
                 return JsonResponse({'error': 'You do not have permission to edit this trip'})
 
         return JsonResponse({'address': address})
+
+def moveToInterested(request, itemID):
+    if request.method == 'POST':
+        permissions = request.session['trip_permission']
+        trip_id = int(request.session['current_trip'])
+        item = Item.objects.get(id=itemID)
+        if item.trip.id == trip_id and (permissions == "Creator" or permissions == "Can Edit"):
+            item.day = None
+            item.save()
+        return HttpResponse('200 - Moved to interested')
 
 def removeFromInterested(request):
     if request.method == 'POST':
@@ -387,3 +395,13 @@ class DayViewSet(viewsets.ModelViewSet):
 class ItemViewSet(viewsets.ModelViewSet):
     queryset = Item.objects.all()
     serializer_class = ItemSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        # Check if item is from current trip and that user has permissions before deleting
+        session = request.session
+        permissions = session['trip_permission']
+        item_id = kwargs['pk']
+        item = Item.objects.get(id=item_id)
+        if item.trip.id == int(session['current_trip']) and (permissions == "Creator" or permissions == "Can Edit"):
+            item.delete()
+        return HttpResponse('204 - No Content')

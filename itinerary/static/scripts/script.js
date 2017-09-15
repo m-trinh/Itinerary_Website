@@ -48,27 +48,42 @@ function getCookie(name) {
 var moving_item = null;
 var items_list = null;
 function pickUp(element) {
-    element.style.position = "fixed";
+    var parent = element.parentElement;
+    parent.style.position = "fixed";
     $("#empty_space").show();
-    $("#empty_space").insertAfter(element);
-    element.style.zIndex = "1";
-    moving_item = element;
+    $("#empty_space").insertAfter(parent);
+    parent.style.zIndex = "1";
+    moving_item = parent;
     items_list = document.getElementsByClassName("movable");
     $("body").addClass("not_selectable");
 }
 
 function drop(element) {
-    $(element).insertBefore("#empty_space");
-    element.style.position = "relative";
-    element.style.left = "";
-    element.style.top = "";
-    element.style.zIndex = "";
+    var parent = element.parentElement;
+    $(parent).insertBefore("#empty_space");
+    parent.style.position = "relative";
+    parent.style.left = "";
+    parent.style.top = "";
+    parent.style.zIndex = "";
     $("#empty_space").hide();
     moving_item = null;
     $("body").removeClass("not_selectable");
     clearSelection();
-    var new_day = element.parentElement;
+    var new_day = parent.parentElement;
     updateItems(new_day);
+}
+
+function moveToInterested(element, item_id) {
+    $.ajax({
+        type: 'POST',
+        url: 'http://' + server_host + ':' + server_port + '/moveToInterested/' + item_id,
+        beforeSend: function (request) {
+            request.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+        },
+        success: function(response) {
+            document.getElementById('interested_list').appendChild(element.parentElement);
+        },
+    });
 }
 
 function clearSelection() {
@@ -91,8 +106,7 @@ function updateItems(day) {
     var data = {};
     data['items'] = [];
     for (var i = 0; i < items.length; i++) {
-        var position = $("#" + items[i].parentElement.id + " .item").index(items[i]) + 1;
-        var item = {'item_id': parseInt(items[i].id.slice(5)), 'day_id': day_id, 'position': position};
+        var item = {'item_id': parseInt(items[i].id.slice(5)), 'day_id': day_id, 'position': i + 1};
         data['items'].push(JSON.stringify(item));
     }
     console.log(data);

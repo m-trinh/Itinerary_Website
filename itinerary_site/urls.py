@@ -41,6 +41,7 @@ urlpatterns = [
 	url(r'^getFoursquareVenue', views.getFoursquareVenue, name='getFoursquareVenue'),
 	url(r'^updateStartLocations', views.updateStartLocations, name='updateStartLocations'),
 	url(r'^removeFromInterested', views.removeFromInterested, name='removeFromInterested'),
+	url(r'^moveToInterested/(?P<itemID>\d+)', views.moveToInterested, name='moveToInterested'),
     url(r'^admin/', admin.site.urls),
 	url(r'^api/', include(router.urls)),
 ]
